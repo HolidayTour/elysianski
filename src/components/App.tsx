@@ -3,14 +3,14 @@ import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowfl
 
 // *** 구글 시트 CSV 주소 ***
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQxi-VFW9RLmKHtGDqcmUIyZcbLhMFuXrClqF1xL3QdTz945zC5TNrEuYQFOqNjgfTU1KoFttAZeHe/pub?output=csv";
-const APP_VERSION = "v1.26";
+const APP_VERSION = "v1.28";
 const ACCESS_PASSWORD = "6578888";
 
 // --- 데이터 컬럼 매핑 ---
 const COLS = {
   TEAM: 0,       // A
   GUIDE: 1,      // B
-  BUS_INFO: 2,   // C
+  BUS_INFO: 2,   // C (버스 정보)
   CODE: 3,       // D
   EVENT: 4,      // E
   RES_NO: 5,     // F
@@ -31,6 +31,54 @@ const COLS = {
   CLOTH_E: 20,   // U
   CLOTH_S: 21,   // V
   NOTE: 22       // W
+};
+
+// --- 팀별 색상 정적 매핑 (Tailwind JIT 문제 해결용) ---
+const TEAM_THEMES = {
+  'A': {
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    text: 'text-blue-600',
+    badgeBg: 'bg-blue-100',
+    button: 'bg-blue-600 border-blue-600',
+    bar: 'bg-blue-500',
+    icon: 'text-blue-600',
+    ring: 'ring-blue-200',
+    lightBg: 'bg-blue-50/20'
+  },
+  'B': {
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    text: 'text-emerald-600',
+    badgeBg: 'bg-emerald-100',
+    button: 'bg-emerald-600 border-emerald-600',
+    bar: 'bg-emerald-500',
+    icon: 'text-emerald-600',
+    ring: 'ring-emerald-200',
+    lightBg: 'bg-emerald-50/20'
+  },
+  'C': {
+    bg: 'bg-violet-50',
+    border: 'border-violet-200',
+    text: 'text-violet-600',
+    badgeBg: 'bg-violet-100',
+    button: 'bg-violet-600 border-violet-600',
+    bar: 'bg-violet-500',
+    icon: 'text-violet-600',
+    ring: 'ring-violet-200',
+    lightBg: 'bg-violet-50/20'
+  },
+  'DEFAULT': {
+    bg: 'bg-slate-50',
+    border: 'border-slate-200',
+    text: 'text-slate-600',
+    badgeBg: 'bg-slate-100',
+    button: 'bg-slate-600 border-slate-600',
+    bar: 'bg-slate-500',
+    icon: 'text-slate-600',
+    ring: 'ring-slate-200',
+    lightBg: 'bg-slate-50/20'
+  }
 };
 
 // --- 유틸리티 ---
@@ -127,22 +175,22 @@ const MessengerLink = ({ text }) => {
         link = `https://wa.me/${cleanNumber}`;
     }
 
-    // 색상 통일: slate-100 (검회색 톤)
-    const btnClass = "flex items-center px-2 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-bold border border-slate-200 hover:bg-slate-200 transition-colors";
+    const btnClass = "flex items-start px-2 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-bold border border-slate-200 hover:bg-slate-200 transition-colors h-auto min-h-[28px]";
 
     if (link) {
         return (
             <a href={link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
                 className={btnClass}>
-                <MessageCircle size={12} className="mr-1.5 flex-shrink-0"/> 
-                <span className="break-all">{text}</span>
-                <ExternalLink size={10} className="ml-1 opacity-50 flex-shrink-0"/>
+                <MessageCircle size={12} className="mr-1.5 flex-shrink-0 mt-0.5"/> 
+                <span className="break-all leading-snug">{text}</span>
+                <ExternalLink size={10} className="ml-1 opacity-50 flex-shrink-0 mt-0.5"/>
             </a>
         );
     }
     return (
         <div className={btnClass}>
-            <MessageCircle size={12} className="mr-1.5 opacity-70 flex-shrink-0"/> <span className="break-all">{text}</span>
+            <MessageCircle size={12} className="mr-1.5 opacity-70 flex-shrink-0 mt-0.5"/> 
+            <span className="break-all leading-snug">{text}</span>
         </div>
     );
 };
@@ -213,7 +261,7 @@ export default function GuideProChecklist() {
     if (sessionAuth === 'true') {
         setIsAuthenticated(true);
     }
-    const saved = localStorage.getItem('guide_pro_state_v16'); // v16 업데이트
+    const saved = localStorage.getItem('guide_pro_state_v18'); 
     if (saved) setAppState(JSON.parse(saved));
   }, []);
 
@@ -225,7 +273,7 @@ export default function GuideProChecklist() {
 
   const saveState = (newState) => {
     setAppState(newState);
-    localStorage.setItem('guide_pro_state_v16', JSON.stringify(newState));
+    localStorage.setItem('guide_pro_state_v18', JSON.stringify(newState));
   };
 
   useEffect(() => {
@@ -278,7 +326,7 @@ export default function GuideProChecklist() {
             pickup: row[COLS.PICKUP] ? row[COLS.PICKUP].trim() : '',
             note: row[COLS.NOTE],
             busInfo: row[COLS.BUS_INFO], 
-            guideMemo: row[COLS.NOTE] || row[COLS.GUIDE_MEMO], // 비고 혹은 메모
+            guideMemo: row[COLS.NOTE] || row[COLS.GUIDE_MEMO], 
             items: {
                 shuttle: safeParseInt(row[COLS.SHUTTLE]),
                 sled: safeParseInt(row[COLS.SLED]),
@@ -408,23 +456,18 @@ export default function GuideProChecklist() {
       saveState(newState);
   };
 
-  // 특정 카드로 스크롤 이동
   const scrollToCard = (code) => {
       const element = document.getElementById(`card-${code}`);
       if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // 반짝임 효과
           element.classList.add('ring-4', 'ring-rose-200');
           setTimeout(() => element.classList.remove('ring-4', 'ring-rose-200'), 2000);
       }
   };
 
-  const getThemeColor = (team) => {
-      const t = team.replace('팀', '').trim();
-      if(t === 'A') return 'blue';
-      if(t === 'B') return 'emerald';
-      if(t === 'C') return 'violet';
-      return 'slate';
+  const getTheme = (teamName) => {
+      const t = teamName.replace('팀', '').trim().toUpperCase();
+      return TEAM_THEMES[t] || TEAM_THEMES['DEFAULT'];
   };
 
   if (!isAuthenticated) {
@@ -447,7 +490,7 @@ export default function GuideProChecklist() {
               <header className="mb-6 pt-2">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800 mb-1 tracking-tight">Elysian Ski Tour <span className="text-slate-400 text-sm font-normal">v1.26</span></h1>
+                        <h1 className="text-2xl font-bold text-slate-800 mb-1 tracking-tight">Elysian Ski Tour <span className="text-slate-400 text-sm font-normal">v1.28</span></h1>
                         <div className="flex items-center text-slate-600 font-bold text-lg">
                             <Calendar size={18} className="mr-2 text-blue-600"/>
                             <span>{tourDate.date}</span>
@@ -461,7 +504,7 @@ export default function GuideProChecklist() {
 
               <div className="space-y-4">
                   {allTeamsSummary.map((teamData) => {
-                      const theme = getThemeColor(teamData.team);
+                      const styles = getTheme(teamData.team);
                       const isEmpty = teamData.count === 0;
                       
                       return (
@@ -475,19 +518,19 @@ export default function GuideProChecklist() {
                             }}
                             className={`bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden transition-all ${isEmpty ? 'opacity-60 grayscale' : 'active:scale-[0.98] cursor-pointer hover:shadow-md'}`}
                           >
-                              <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full bg-${theme}-50 opacity-60`}></div>
+                              <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-60 ${styles.bg}`}></div>
                               <div className="relative z-10">
                                   <div className="flex justify-between items-center mb-4">
-                                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-${theme}-100 text-${theme}-600 font-black text-xl shadow-inner`}>
+                                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-inner ${styles.badgeBg} ${styles.text}`}>
                                           {teamData.team}
                                       </div>
                                       <div className="flex-1 ml-4">
                                           <div className="flex justify-between items-end mb-1">
                                               <span className="text-xs text-slate-400 font-bold">탑승률</span>
-                                              <span className={`text-2xl font-black text-${theme}-600`}>{isNaN(teamData.progress) ? 0 : teamData.progress}%</span>
+                                              <span className={`text-2xl font-black ${styles.text}`}>{isNaN(teamData.progress) ? 0 : teamData.progress}%</span>
                                           </div>
                                           <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                              <div className={`h-full bg-${theme}-500 rounded-full transition-all duration-500`} style={{ width: `${isNaN(teamData.progress) ? 0 : teamData.progress}%` }}></div>
+                                              <div className={`h-full rounded-full transition-all duration-500 ${styles.bar}`} style={{ width: `${isNaN(teamData.progress) ? 0 : teamData.progress}%` }}></div>
                                           </div>
                                       </div>
                                   </div>
@@ -506,7 +549,7 @@ export default function GuideProChecklist() {
                                   <div className="grid grid-cols-4 gap-2 border-t border-slate-100 pt-3">
                                       <div className="text-center border-r border-slate-100">
                                           <span className="block text-[10px] text-slate-400 mb-0.5">총원</span>
-                                          <span className={`block text-lg font-black text-${theme}-600`}>{isNaN(teamData.totalPax) ? 0 : teamData.totalPax}</span>
+                                          <span className={`block text-lg font-black ${styles.text}`}>{isNaN(teamData.totalPax) ? 0 : teamData.totalPax}</span>
                                       </div>
                                       {Object.entries(teamData.pickupStats).slice(0, 3).map(([place, count]) => (
                                           <div key={place} className="text-center">
@@ -525,7 +568,7 @@ export default function GuideProChecklist() {
   }
 
   // --- 2. 상세 체크리스트 뷰 ---
-  const theme = getThemeColor(selectedTeam);
+  const styles = getTheme(selectedTeam);
   const stats = teamDetailData.stats;
   
   return (
@@ -545,7 +588,7 @@ export default function GuideProChecklist() {
                     </button>
                     <div className="min-w-0 flex-1">
                         <div className="flex items-baseline gap-2 truncate mb-1">
-                             <h1 className={`text-3xl font-black text-${theme}-600 tracking-tight`}>
+                             <h1 className={`text-3xl font-black tracking-tight ${styles.text}`}>
                                 {selectedTeam}팀
                             </h1>
                              <span className="text-xl font-bold text-slate-800 truncate">
@@ -589,7 +632,7 @@ export default function GuideProChecklist() {
                     <SummaryPillInfo label="의류(E)" total={stats.totalItems.clothE} />
                     <SummaryPillInfo label="의류(S)" total={stats.totalItems.clothS} />
 
-                    {/* 확인 사항 (제일 우측, 클릭시 이동) */}
+                    {/* 확인 사항 (제일 우측, 클릭시 이동, 볼드체) */}
                     {teamDetailData.notesCodes.length > 0 && (
                         <div className="flex flex-col items-center justify-center min-w-[max-content] px-3 py-1.5 rounded-lg border bg-rose-50 border-rose-100 text-rose-600 ml-2 shadow-sm">
                             <span className="text-[10px] font-medium opacity-80 mb-0.5 whitespace-nowrap flex items-center">
@@ -600,7 +643,7 @@ export default function GuideProChecklist() {
                                     <button
                                         key={code}
                                         onClick={() => scrollToCard(code)}
-                                        className="text-xs font-bold leading-none hover:text-rose-800 hover:underline active:scale-95 transition-transform"
+                                        className="text-xs font-black leading-none hover:text-rose-800 hover:underline active:scale-95 transition-transform"
                                     >
                                         {code}
                                     </button>
@@ -621,7 +664,7 @@ export default function GuideProChecklist() {
                                 onClick={() => setLocationFilter(loc)}
                                 className={`flex-1 min-w-[60px] whitespace-nowrap px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                                     locationFilter === loc
-                                    ? `bg-${theme}-600 text-white shadow-md`
+                                    ? `${styles.button} text-white shadow-md`
                                     : 'bg-transparent text-slate-500 hover:bg-white hover:shadow-sm'
                                 }`}
                             >
@@ -633,11 +676,11 @@ export default function GuideProChecklist() {
 
                 <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">현재 탑승률</span>
-                    <span className={`text-sm font-black text-${theme}-600`}>{isNaN(teamDetailData.progress) ? 0 : teamDetailData.progress}%</span>
+                    <span className={`text-sm font-black ${styles.text}`}>{isNaN(teamDetailData.progress) ? 0 : teamDetailData.progress}%</span>
                 </div>
                 <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div 
-                        className={`h-full bg-${theme}-500 rounded-full transition-all duration-700 ease-out`} 
+                        className={`h-full rounded-full transition-all duration-700 ease-out ${styles.bar}`} 
                         style={{ width: `${isNaN(teamDetailData.progress) ? 0 : teamDetailData.progress}%` }}
                     ></div>
                 </div>
@@ -663,11 +706,12 @@ export default function GuideProChecklist() {
                 <DetailCard 
                     key={item.id} 
                     data={item} 
+                    teamBusInfo={teamDetailData.busInfo}
                     state={appState[item.id] || {}} 
                     onToggleBoarding={() => toggleBoarding(item.id)}
                     onToggleDist={toggleDistribution}
                     onUpdateMemo={(text) => updateMemo(item.id, text)}
-                    theme={theme}
+                    styles={styles}
                 />
             ))
         )}
@@ -714,7 +758,7 @@ function SummaryPillInfo({ label, total }) {
     );
 }
 
-function DetailCard({ data, state, onToggleBoarding, onToggleDist, onUpdateMemo, theme }) {
+function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, onUpdateMemo, styles }) {
     const isBoarded = state.boarded;
     const memo = state.memo || '';
     const dist = state.distributed || {};
@@ -740,19 +784,23 @@ function DetailCard({ data, state, onToggleBoarding, onToggleDist, onUpdateMemo,
         { label: '의류(S)', val: data.items.clothS, icon: Shirt },
     ].filter(i => i.val > 0);
 
-    // 버튼 스타일 통일 (검회색)
     const btnClass = "flex items-center px-2.5 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 hover:bg-slate-200 transition-colors";
+
+    // 버스 정보 중복 체크
+    // 데이터의 버스정보가 있고, 팀 메인 버스정보와 다를 때만 표시
+    const showBusInfo = data.busInfo && data.busInfo.length > 5 && data.busInfo !== teamBusInfo;
 
     return (
         <div id={`card-${data.code}`} className={`rounded-xl border shadow-sm bg-white overflow-hidden transition-all duration-300 ${
             isBoarded 
-            ? 'border-blue-200 bg-blue-50/20' 
+            ? `border-${styles.ring} ${styles.lightBg}` 
             : 'border-slate-200 hover:shadow-md'
         }`}>
             {/* Header */}
             <div className="flex items-center p-3 border-b border-slate-50 bg-white/80">
-                <div className={`flex flex-col items-center justify-center w-12 h-12 bg-slate-100 rounded-xl flex-shrink-0 text-${theme}-600 mr-3 shadow-inner`}>
-                    <span className="text-xl font-black">{data.code}</span>
+                {/* 팀 코드 박스 (색상 적용) */}
+                <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl flex-shrink-0 mr-3 shadow-sm border ${styles.badgeBg} ${styles.text} ${styles.border}`}>
+                    <span className="text-2xl font-black">{data.code}</span>
                 </div>
                 
                 <div className="min-w-0 flex-1 mr-2">
@@ -775,7 +823,7 @@ function DetailCard({ data, state, onToggleBoarding, onToggleDist, onUpdateMemo,
                     onClick={onToggleBoarding}
                     className={`flex items-center justify-center px-3 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 flex-shrink-0 shadow-sm border ${
                         isBoarded
-                        ? `bg-${theme}-600 text-white border-${theme}-600`
+                        ? `${styles.button} text-white`
                         : `bg-white text-slate-500 border-slate-200 hover:border-slate-300`
                     }`}
                 >
@@ -785,7 +833,6 @@ function DetailCard({ data, state, onToggleBoarding, onToggleDist, onUpdateMemo,
             </div>
 
             <div className="p-3 bg-white">
-                {/* 연락처 및 앱 아이디 (색상 통일) */}
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                     {data.contact && (
                         <a href={`tel:${data.contact}`} className={btnClass}>
@@ -808,7 +855,6 @@ function DetailCard({ data, state, onToggleBoarding, onToggleDist, onUpdateMemo,
                     </button>
                 </div>
 
-                {/* 비고 및 메모 */}
                 {(data.guideMemo || data.note) && (
                     <div className="mb-3 space-y-2">
                         {data.note && (
@@ -826,7 +872,17 @@ function DetailCard({ data, state, onToggleBoarding, onToggleDist, onUpdateMemo,
                     </div>
                 )}
 
-                {/* 체크 버튼 그리드 */}
+                {/* 개별 버스 정보 (중복 시 숨김) */}
+                {showBusInfo && (
+                    <div className="mb-3 p-2 border border-slate-100 rounded-lg bg-slate-50/80">
+                        <div className="text-[10px] text-slate-400 font-bold mb-0.5">개별 버스 정보</div>
+                        <PhoneLinkedText 
+                            text={data.busInfo} 
+                            className="text-xs font-bold text-slate-700" 
+                        />
+                    </div>
+                )}
+
                 <div className="grid grid-cols-4 gap-2 mb-3">
                     {items.map((item) => {
                         const isDistributed = dist[item.key];
@@ -863,7 +919,6 @@ function DetailCard({ data, state, onToggleBoarding, onToggleDist, onUpdateMemo,
                     })}
                 </div>
 
-                {/* 하단 정보: 기타 항목 + 메모 (메모박스 최소화) */}
                 <div className="flex justify-between items-start pt-2 border-t border-slate-100">
                     <div className="flex flex-wrap gap-2 items-center h-full pt-1">
                         {extras.map((ex, idx) => (
@@ -874,7 +929,6 @@ function DetailCard({ data, state, onToggleBoarding, onToggleDist, onUpdateMemo,
                         ))}
                     </div>
                     
-                    {/* 메모 입력창 (높이 축소) */}
                     <div className="relative ml-2 flex-shrink-0">
                         <textarea
                             placeholder="메모"
