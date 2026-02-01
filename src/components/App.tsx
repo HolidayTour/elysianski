@@ -323,6 +323,11 @@ export default function GuideProChecklist() {
       const place = curr.pickup || '기타';
       acc.pickups[place] = (acc.pickups[place] || 0) + (curr.pax || 0);
 
+      // 탑승 완료된 총 인원 계산
+      if (appState[curr.id]?.boarded) {
+          acc.boardedPax += (curr.pax || 0);
+      }
+
       // HOT 인원 (Event명에 HOT 포함)
       if (curr.event && /HOT/i.test(curr.event)) {
           acc.totalItems.hot += (curr.pax || 0);
@@ -348,6 +353,7 @@ export default function GuideProChecklist() {
       return acc;
     }, {
       total: 0, 
+      boardedPax: 0,
       pickups: {},
       totalItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0, hot: 0 },
       checkedItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0 }
@@ -681,7 +687,7 @@ export default function GuideProChecklist() {
                         {teamDetailData.notesCodes.length > 0 && (
                             <div className="flex flex-col items-center justify-center min-w-[max-content] px-2 py-1 rounded-lg border bg-rose-50 border-rose-100 text-rose-600 shadow-sm">
                                 <span className="text-[9px] font-medium opacity-80 mb-0.5 whitespace-nowrap flex items-center">
-                                    <FileText size={9} className="mr-1"/>확인
+                                    <FileText size={9} className="mr-1"/>확인필요
                                 </span>
                                 <div className="flex gap-1 max-w-[100px] overflow-hidden">
                                     {teamDetailData.notesCodes.slice(0, 3).map((code) => (
@@ -714,6 +720,7 @@ export default function GuideProChecklist() {
             {/* 1. 옵션 수량 요약 + HOT/강습 추가 */}
             <div className="px-4 py-2 border-b border-slate-100 bg-white">
                 <div className="flex space-x-2 overflow-x-auto scrollbar-hide py-1 items-center">
+                    <SummaryPill label="총인원" total={stats.total} checked={stats.boardedPax} color="blue" />
                     <SummaryPill label="셔틀" total={stats.totalItems.shuttle} checked={stats.checkedItems.shuttle} color="slate" />
                     <SummaryPill label="리프트" total={stats.totalItems.lift} checked={stats.checkedItems.lift} color="violet" />
                     <SummaryPill label="무빙" total={stats.totalItems.moving} checked={stats.checkedItems.moving} color="amber" />
@@ -807,6 +814,7 @@ function SummaryPill({ label, total, checked, color }) {
     if (total === 0 || isNaN(total)) return null;
     const colors = {
         slate: 'bg-slate-100 text-slate-600 border-slate-200',
+        blue: 'bg-blue-100 text-blue-700 border-blue-200',
         violet: 'bg-violet-50 text-violet-700 border-violet-100',
         amber: 'bg-amber-50 text-amber-700 border-amber-100',
         cyan: 'bg-cyan-50 text-cyan-700 border-cyan-100',
