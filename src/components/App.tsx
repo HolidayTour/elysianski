@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowflake, ArrowUpRight, Mountain, ClipboardList, Mail, MapPin, Shirt, ChevronLeft, Calendar, ExternalLink, Lock, Copy, FileText, PenLine } from 'lucide-react';
+import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowflake, ArrowUpRight, Mountain, ClipboardList, Mail, MapPin, Shirt, ChevronLeft, Calendar, ExternalLink, Lock, Copy, FileText, PenLine, Flame } from 'lucide-react';
 
 // *** 구글 시트 CSV 주소 ***
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQxi-VFW9RLmKHtGDqcmUIyZcbLhMFuXrClqF1xL3QdTz945zC5TNrEuYQFOqNjgfTU1KoFttAZeHe/pub?output=csv";
-const APP_VERSION = "v1.28";
+const APP_VERSION = "v1.30";
 const ACCESS_PASSWORD = "6578888";
 
 // --- 데이터 컬럼 매핑 ---
 const COLS = {
   TEAM: 0,       // A
   GUIDE: 1,      // B
-  BUS_INFO: 2,   // C (버스 정보)
+  BUS_INFO: 2,   // C
   CODE: 3,       // D
   EVENT: 4,      // E
   RES_NO: 5,     // F
@@ -31,54 +31,6 @@ const COLS = {
   CLOTH_E: 20,   // U
   CLOTH_S: 21,   // V
   NOTE: 22       // W
-};
-
-// --- 팀별 색상 정적 매핑 (Tailwind JIT 문제 해결용) ---
-const TEAM_THEMES = {
-  'A': {
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    text: 'text-blue-600',
-    badgeBg: 'bg-blue-100',
-    button: 'bg-blue-600 border-blue-600',
-    bar: 'bg-blue-500',
-    icon: 'text-blue-600',
-    ring: 'ring-blue-200',
-    lightBg: 'bg-blue-50/20'
-  },
-  'B': {
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-    text: 'text-emerald-600',
-    badgeBg: 'bg-emerald-100',
-    button: 'bg-emerald-600 border-emerald-600',
-    bar: 'bg-emerald-500',
-    icon: 'text-emerald-600',
-    ring: 'ring-emerald-200',
-    lightBg: 'bg-emerald-50/20'
-  },
-  'C': {
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
-    text: 'text-violet-600',
-    badgeBg: 'bg-violet-100',
-    button: 'bg-violet-600 border-violet-600',
-    bar: 'bg-violet-500',
-    icon: 'text-violet-600',
-    ring: 'ring-violet-200',
-    lightBg: 'bg-violet-50/20'
-  },
-  'DEFAULT': {
-    bg: 'bg-slate-50',
-    border: 'border-slate-200',
-    text: 'text-slate-600',
-    badgeBg: 'bg-slate-100',
-    button: 'bg-slate-600 border-slate-600',
-    bar: 'bg-slate-500',
-    icon: 'text-slate-600',
-    ring: 'ring-slate-200',
-    lightBg: 'bg-slate-50/20'
-  }
 };
 
 // --- 유틸리티 ---
@@ -261,7 +213,7 @@ export default function GuideProChecklist() {
     if (sessionAuth === 'true') {
         setIsAuthenticated(true);
     }
-    const saved = localStorage.getItem('guide_pro_state_v18'); 
+    const saved = localStorage.getItem('guide_pro_state_v20'); 
     if (saved) setAppState(JSON.parse(saved));
   }, []);
 
@@ -273,7 +225,7 @@ export default function GuideProChecklist() {
 
   const saveState = (newState) => {
     setAppState(newState);
-    localStorage.setItem('guide_pro_state_v18', JSON.stringify(newState));
+    localStorage.setItem('guide_pro_state_v20', JSON.stringify(newState));
   };
 
   useEffect(() => {
@@ -315,7 +267,7 @@ export default function GuideProChecklist() {
             team: row[COLS.TEAM].toUpperCase(),
             guide: row[COLS.GUIDE],
             code: row[COLS.CODE],
-            event: row[COLS.EVENT],
+            event: row[COLS.EVENT], 
             resNo: row[COLS.RES_NO],
             name: row[COLS.NAME],
             contact: row[COLS.CONTACT],
@@ -326,7 +278,6 @@ export default function GuideProChecklist() {
             pickup: row[COLS.PICKUP] ? row[COLS.PICKUP].trim() : '',
             note: row[COLS.NOTE],
             busInfo: row[COLS.BUS_INFO], 
-            guideMemo: row[COLS.NOTE] || row[COLS.GUIDE_MEMO], 
             items: {
                 shuttle: safeParseInt(row[COLS.SHUTTLE]),
                 sled: safeParseInt(row[COLS.SLED]),
@@ -364,13 +315,18 @@ export default function GuideProChecklist() {
     const progress = totalRows > 0 ? Math.round((boardedRows / totalRows) * 100) : 0;
 
     const notesCodes = filtered
-      .filter(item => (item.note && item.note.trim() !== '') || (item.guideMemo && item.guideMemo.trim() !== ''))
+      .filter(item => item.note && item.note.trim() !== '')
       .map(item => item.code);
 
     const stats = filtered.reduce((acc, curr) => {
       acc.total += (curr.pax || 0);
       const place = curr.pickup || '기타';
       acc.pickups[place] = (acc.pickups[place] || 0) + (curr.pax || 0);
+
+      // HOT 인원 (Event명에 HOT 포함)
+      if (curr.event && /HOT/i.test(curr.event)) {
+          acc.totalItems.hot += (curr.pax || 0);
+      }
 
       acc.totalItems.shuttle += (curr.items.shuttle || 0);
       acc.totalItems.sled += (curr.items.sled || 0);
@@ -393,12 +349,38 @@ export default function GuideProChecklist() {
     }, {
       total: 0, 
       pickups: {},
-      totalItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0 },
+      totalItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0, hot: 0 },
       checkedItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0 }
     });
 
     return { list: filtered, guides: guides.join(', '), busInfo: validBusInfo, progress, stats, notesCodes };
   }, [rawData, selectedTeam, appState]);
+
+  // 강습 통계 (전체 팀)
+  const lessonStats = useMemo(() => {
+      const stats = {
+          ski: { total: 0, cn: 0, en: 0 },
+          board: { total: 0, cn: 0, en: 0 }
+      };
+
+      rawData.forEach(item => {
+          const count = item.items.lesson || 0;
+          if (count > 0) {
+              const isBoard = item.event && (/board/i.test(item.event) || /보드/i.test(item.event));
+              const type = isBoard ? 'board' : 'ski';
+              
+              const lang = item.lang || '';
+              const isCn = /중국|china|chinese|中/i.test(lang);
+              const isEn = /영|english|eng/i.test(lang);
+
+              stats[type].total += count;
+              if (isCn) stats[type].cn += count;
+              else if (isEn) stats[type].en += count; // 나머지 영어 또는 기타
+              else stats[type].en += count; // default to EN category if uncertain, or add 'other'
+          }
+      });
+      return stats;
+  }, [rawData]);
 
   const allTeamsSummary = useMemo(() => {
     return availableTeams.map(team => {
@@ -470,6 +452,54 @@ export default function GuideProChecklist() {
       return TEAM_THEMES[t] || TEAM_THEMES['DEFAULT'];
   };
 
+  // --- 팀별 색상 정적 매핑 (Tailwind JIT 문제 해결용) ---
+  const TEAM_THEMES = {
+    'A': {
+      bg: 'bg-blue-50',
+      border: 'border-blue-200',
+      text: 'text-blue-600',
+      badgeBg: 'bg-blue-100',
+      button: 'bg-blue-600 border-blue-600',
+      bar: 'bg-blue-500',
+      icon: 'text-blue-600',
+      ring: 'ring-blue-200',
+      lightBg: 'bg-blue-50/20'
+    },
+    'B': {
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-200',
+      text: 'text-emerald-600',
+      badgeBg: 'bg-emerald-100',
+      button: 'bg-emerald-600 border-emerald-600',
+      bar: 'bg-emerald-500',
+      icon: 'text-emerald-600',
+      ring: 'ring-emerald-200',
+      lightBg: 'bg-emerald-50/20'
+    },
+    'C': {
+      bg: 'bg-violet-50',
+      border: 'border-violet-200',
+      text: 'text-violet-600',
+      badgeBg: 'bg-violet-100',
+      button: 'bg-violet-600 border-violet-600',
+      bar: 'bg-violet-500',
+      icon: 'text-violet-600',
+      ring: 'ring-violet-200',
+      lightBg: 'bg-violet-50/20'
+    },
+    'DEFAULT': {
+      bg: 'bg-slate-50',
+      border: 'border-slate-200',
+      text: 'text-slate-600',
+      badgeBg: 'bg-slate-100',
+      button: 'bg-slate-600 border-slate-600',
+      bar: 'bg-slate-500',
+      icon: 'text-slate-600',
+      ring: 'ring-slate-200',
+      lightBg: 'bg-slate-50/20'
+    }
+  };
+
   if (!isAuthenticated) {
       return <LoginScreen onLogin={handleLogin} />;
   }
@@ -487,10 +517,10 @@ export default function GuideProChecklist() {
   if (currentView === 'list') {
       return (
           <div className="min-h-screen bg-slate-50 p-4 pb-20 font-sans">
-              <header className="mb-6 pt-2">
-                  <div className="flex justify-between items-start mb-4">
+              <header className="mb-4 pt-2">
+                  <div className="flex justify-between items-start mb-2">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800 mb-1 tracking-tight">Elysian Ski Tour <span className="text-slate-400 text-sm font-normal">v1.28</span></h1>
+                        <h1 className="text-2xl font-bold text-slate-800 mb-1 tracking-tight">Elysian Ski Tour <span className="text-slate-400 text-sm font-normal">v1.30</span></h1>
                         <div className="flex items-center text-slate-600 font-bold text-lg">
                             <Calendar size={18} className="mr-2 text-blue-600"/>
                             <span>{tourDate.date}</span>
@@ -501,6 +531,44 @@ export default function GuideProChecklist() {
                     </button>
                   </div>
               </header>
+
+              {/* 강습 통계 대시보드 (메인 상단) */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                  {/* 스키 통계 */}
+                  <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+                      <div className="text-sm font-bold text-slate-700 mb-2 border-b border-slate-100 pb-1 flex justify-between items-center">
+                          <span>⛷️ 스키 강습</span>
+                          <span className="text-blue-600 text-lg">{lessonStats.ski.total}</span>
+                      </div>
+                      <div className="grid grid-cols-2 text-center text-xs">
+                          <div className="border-r border-slate-100">
+                              <span className="text-slate-400 block">중국어</span>
+                              <span className="font-bold text-slate-700 text-sm">{lessonStats.ski.cn}</span>
+                          </div>
+                          <div>
+                              <span className="text-slate-400 block">영어</span>
+                              <span className="font-bold text-slate-700 text-sm">{lessonStats.ski.en}</span>
+                          </div>
+                      </div>
+                  </div>
+                  {/* 보드 통계 */}
+                  <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+                      <div className="text-sm font-bold text-slate-700 mb-2 border-b border-slate-100 pb-1 flex justify-between items-center">
+                          <span>🏂 보드 강습</span>
+                          <span className="text-rose-600 text-lg">{lessonStats.board.total}</span>
+                      </div>
+                      <div className="grid grid-cols-2 text-center text-xs">
+                          <div className="border-r border-slate-100">
+                              <span className="text-slate-400 block">중국어</span>
+                              <span className="font-bold text-slate-700 text-sm">{lessonStats.board.cn}</span>
+                          </div>
+                          <div>
+                              <span className="text-slate-400 block">영어</span>
+                              <span className="font-bold text-slate-700 text-sm">{lessonStats.board.en}</span>
+                          </div>
+                      </div>
+                  </div>
+              </div>
 
               <div className="space-y-4">
                   {allTeamsSummary.map((teamData) => {
@@ -595,7 +663,7 @@ export default function GuideProChecklist() {
                                 {teamDetailData.guides || '미정'}
                              </span>
                         </div>
-                        {/* 버스 정보 (배경 제거하고 깔끔하게) */}
+                        {/* 버스 정보 */}
                         <div className="flex items-start text-slate-600 mt-1">
                             <Bus size={16} className="mr-2 mt-0.5 flex-shrink-0 text-slate-400" />
                             <PhoneLinkedText 
@@ -606,10 +674,34 @@ export default function GuideProChecklist() {
                     </div>
                 </div>
                 
-                <div className="text-right flex flex-col items-end flex-shrink-0 ml-2">
-                     <button onClick={loadData} className="p-2 mb-1 bg-slate-50 rounded-full hover:bg-slate-100 active:scale-95 text-slate-500 border border-slate-200">
-                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''}/>
-                     </button>
+                {/* 우측 상단 컨트롤 (새로고침 + 확인필요) */}
+                <div className="text-right flex flex-col items-end flex-shrink-0 ml-2 space-y-2">
+                     <div className="flex gap-2">
+                        {/* 확인 필요 박스 (헤더로 이동) */}
+                        {teamDetailData.notesCodes.length > 0 && (
+                            <div className="flex flex-col items-center justify-center min-w-[max-content] px-2 py-1 rounded-lg border bg-rose-50 border-rose-100 text-rose-600 shadow-sm">
+                                <span className="text-[9px] font-medium opacity-80 mb-0.5 whitespace-nowrap flex items-center">
+                                    <FileText size={9} className="mr-1"/>확인
+                                </span>
+                                <div className="flex gap-1 max-w-[100px] overflow-hidden">
+                                    {teamDetailData.notesCodes.slice(0, 3).map((code) => (
+                                        <button
+                                            key={code}
+                                            onClick={() => scrollToCard(code)}
+                                            className="text-xs font-black leading-none hover:text-rose-800 hover:underline active:scale-95 transition-transform"
+                                        >
+                                            {code}
+                                        </button>
+                                    ))}
+                                    {teamDetailData.notesCodes.length > 3 && <span className="text-[10px]">..</span>}
+                                </div>
+                            </div>
+                        )}
+                        
+                        <button onClick={loadData} className="p-2 h-fit bg-slate-50 rounded-full hover:bg-slate-100 active:scale-95 text-slate-500 border border-slate-200">
+                            <RefreshCw size={18} className={loading ? 'animate-spin' : ''}/>
+                        </button>
+                     </div>
                 </div>
             </div>
         </div>
@@ -619,7 +711,7 @@ export default function GuideProChecklist() {
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-md">
         <div className="max-w-xl mx-auto">
             
-            {/* 1. 옵션 수량 요약 + [확인필요] 박스 */}
+            {/* 1. 옵션 수량 요약 + HOT/강습 추가 */}
             <div className="px-4 py-2 border-b border-slate-100 bg-white">
                 <div className="flex space-x-2 overflow-x-auto scrollbar-hide py-1 items-center">
                     <SummaryPill label="셔틀" total={stats.totalItems.shuttle} checked={stats.checkedItems.shuttle} color="slate" />
@@ -631,26 +723,16 @@ export default function GuideProChecklist() {
                     <SummaryPillInfo label="장비" total={stats.totalItems.equip} />
                     <SummaryPillInfo label="의류(E)" total={stats.totalItems.clothE} />
                     <SummaryPillInfo label="의류(S)" total={stats.totalItems.clothS} />
-
-                    {/* 확인 사항 (제일 우측, 클릭시 이동, 볼드체) */}
-                    {teamDetailData.notesCodes.length > 0 && (
-                        <div className="flex flex-col items-center justify-center min-w-[max-content] px-3 py-1.5 rounded-lg border bg-rose-50 border-rose-100 text-rose-600 ml-2 shadow-sm">
-                            <span className="text-[10px] font-medium opacity-80 mb-0.5 whitespace-nowrap flex items-center">
-                                <FileText size={10} className="mr-1"/>확인필요
-                            </span>
-                            <div className="flex gap-1">
-                                {teamDetailData.notesCodes.map((code) => (
-                                    <button
-                                        key={code}
-                                        onClick={() => scrollToCard(code)}
-                                        className="text-xs font-black leading-none hover:text-rose-800 hover:underline active:scale-95 transition-transform"
-                                    >
-                                        {code}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    
+                    {/* HOT 인원 & 강습 인원 추가 */}
+                    <div className="flex flex-col items-center justify-center min-w-[50px] px-2 py-1.5 rounded-lg border bg-rose-50 border-rose-100 text-rose-600">
+                        <span className="text-[10px] font-bold opacity-70 mb-0.5 whitespace-nowrap">HOT</span>
+                        <span className="text-sm font-black leading-none">{stats.totalItems.hot}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center min-w-[50px] px-2 py-1.5 rounded-lg border bg-blue-50 border-blue-100 text-blue-600">
+                        <span className="text-[10px] font-bold opacity-70 mb-0.5 whitespace-nowrap">강습</span>
+                        <span className="text-sm font-black leading-none">{stats.totalItems.lesson}</span>
+                    </div>
                 </div>
             </div>
 
@@ -786,8 +868,10 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
 
     const btnClass = "flex items-center px-2.5 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 hover:bg-slate-200 transition-colors";
 
+    // HOT 감지: 행사명에 [HOT] 포함 시
+    const isHot = data.event && (data.event.includes('[HOT]') || data.event.includes('HOT'));
+
     // 버스 정보 중복 체크
-    // 데이터의 버스정보가 있고, 팀 메인 버스정보와 다를 때만 표시
     const showBusInfo = data.busInfo && data.busInfo.length > 5 && data.busInfo !== teamBusInfo;
 
     return (
@@ -804,7 +888,17 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                 </div>
                 
                 <div className="min-w-0 flex-1 mr-2">
-                    <h3 className="font-bold truncate text-lg leading-tight mb-0.5 text-slate-800">{data.name}</h3>
+                    {/* 이름 + HOT 뱃지 */}
+                    <div className="flex items-center gap-1 mb-0.5">
+                        <h3 className={`font-bold truncate text-lg leading-tight ${isBoarded ? 'text-slate-400' : 'text-slate-800'}`}>
+                            {data.name}
+                        </h3>
+                        {isHot && (
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-600 border border-rose-200 leading-none">
+                                <Flame size={10} className="mr-0.5 fill-rose-600"/> HOT
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center">
                          <div className="flex items-center text-xs font-bold text-slate-500 mr-2">
                              <Users size={12} className="mr-1"/>
@@ -833,6 +927,14 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
             </div>
 
             <div className="p-3 bg-white">
+                
+                {/* 행사명 */}
+                {data.event && (
+                    <div className="mb-3 text-xs font-medium text-slate-700 bg-slate-50/80 p-2 rounded-lg border border-slate-100 leading-snug">
+                        {data.event}
+                    </div>
+                )}
+
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                     {data.contact && (
                         <a href={`tel:${data.contact}`} className={btnClass}>
@@ -855,20 +957,11 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     </button>
                 </div>
 
-                {(data.guideMemo || data.note) && (
-                    <div className="mb-3 space-y-2">
-                        {data.note && (
-                            <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-lg flex items-start text-rose-700 text-sm">
-                                <AlertCircle size={16} className="mt-0.5 mr-2 flex-shrink-0 text-rose-500"/>
-                                <span className="font-bold leading-snug">{data.note}</span>
-                            </div>
-                        )}
-                        {data.guideMemo && (
-                            <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-lg flex items-start text-blue-700 text-xs">
-                                <div className="font-bold bg-blue-100 text-blue-600 px-1.5 rounded mr-2 flex-shrink-0 text-[10px]">MEMO</div>
-                                <span className="font-medium leading-snug">{data.guideMemo}</span>
-                            </div>
-                        )}
+                {/* 비고 (빨간색만 표시, 파란 메모 중복 제거) */}
+                {data.note && (
+                    <div className="mb-3 p-2.5 bg-rose-50 border border-rose-100 rounded-lg flex items-start text-rose-700 text-sm">
+                        <AlertCircle size={16} className="mt-0.5 mr-2 flex-shrink-0 text-rose-500"/>
+                        <span className="font-bold leading-snug">{data.note}</span>
                     </div>
                 )}
 
