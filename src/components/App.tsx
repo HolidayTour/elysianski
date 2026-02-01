@@ -3,7 +3,7 @@ import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowfl
 
 // *** 구글 시트 CSV 주소 ***
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQxi-VFW9RLmKHtGDqcmUIyZcbLhMFuXrClqF1xL3QdTz945zC5TNrEuYQFOqNjgfTU1KoFttAZeHe/pub?output=csv";
-const APP_VERSION = "v1.30";
+const APP_VERSION = "v1.32";
 const ACCESS_PASSWORD = "6578888";
 
 // --- 데이터 컬럼 매핑 ---
@@ -213,7 +213,7 @@ export default function GuideProChecklist() {
     if (sessionAuth === 'true') {
         setIsAuthenticated(true);
     }
-    const saved = localStorage.getItem('guide_pro_state_v20'); 
+    const saved = localStorage.getItem('guide_pro_state_v22'); 
     if (saved) setAppState(JSON.parse(saved));
   }, []);
 
@@ -225,7 +225,7 @@ export default function GuideProChecklist() {
 
   const saveState = (newState) => {
     setAppState(newState);
-    localStorage.setItem('guide_pro_state_v20', JSON.stringify(newState));
+    localStorage.setItem('guide_pro_state_v22', JSON.stringify(newState));
   };
 
   useEffect(() => {
@@ -326,9 +326,10 @@ export default function GuideProChecklist() {
       // 탑승 완료된 총 인원 계산
       if (appState[curr.id]?.boarded) {
           acc.boardedPax += (curr.pax || 0);
+          acc.boardedPickups[place] = (acc.boardedPickups[place] || 0) + (curr.pax || 0);
       }
 
-      // HOT 인원 (Event명에 HOT 포함)
+      // HOT 인원
       if (curr.event && /HOT/i.test(curr.event)) {
           acc.totalItems.hot += (curr.pax || 0);
       }
@@ -355,6 +356,7 @@ export default function GuideProChecklist() {
       total: 0, 
       boardedPax: 0,
       pickups: {},
+      boardedPickups: {}, // 픽업 장소별 탑승 인원
       totalItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0, hot: 0 },
       checkedItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0 }
     });
@@ -374,15 +376,14 @@ export default function GuideProChecklist() {
           if (count > 0) {
               const isBoard = item.event && (/board/i.test(item.event) || /보드/i.test(item.event));
               const type = isBoard ? 'board' : 'ski';
-              
               const lang = item.lang || '';
               const isCn = /중국|china|chinese|中/i.test(lang);
               const isEn = /영|english|eng/i.test(lang);
 
               stats[type].total += count;
               if (isCn) stats[type].cn += count;
-              else if (isEn) stats[type].en += count; // 나머지 영어 또는 기타
-              else stats[type].en += count; // default to EN category if uncertain, or add 'other'
+              else if (isEn) stats[type].en += count; 
+              else stats[type].en += count; 
           }
       });
       return stats;
@@ -414,6 +415,7 @@ export default function GuideProChecklist() {
     return teamDetailData.list.filter(item => item.pickup && item.pickup.includes(locationFilter));
   }, [teamDetailData, locationFilter]);
 
+  // 필터 순서 고정: 전체 -> 홍대 -> 명동 -> 동대문 -> 스키장
   const sortedLocations = useMemo(() => {
       const fixedOrder = ['전체', '홍대', '명동', '동대문', '스키장'];
       const currentLocs = Object.keys(teamDetailData.stats.pickups);
@@ -458,7 +460,6 @@ export default function GuideProChecklist() {
       return TEAM_THEMES[t] || TEAM_THEMES['DEFAULT'];
   };
 
-  // --- 팀별 색상 정적 매핑 (Tailwind JIT 문제 해결용) ---
   const TEAM_THEMES = {
     'A': {
       bg: 'bg-blue-50',
@@ -526,7 +527,7 @@ export default function GuideProChecklist() {
               <header className="mb-4 pt-2">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800 mb-1 tracking-tight">Elysian Ski Tour <span className="text-slate-400 text-sm font-normal">v1.30</span></h1>
+                        <h1 className="text-2xl font-bold text-slate-800 mb-1 tracking-tight">Elysian Ski Tour <span className="text-slate-400 text-sm font-normal">v1.32</span></h1>
                         <div className="flex items-center text-slate-600 font-bold text-lg">
                             <Calendar size={18} className="mr-2 text-blue-600"/>
                             <span>{tourDate.date}</span>
@@ -538,9 +539,8 @@ export default function GuideProChecklist() {
                   </div>
               </header>
 
-              {/* 강습 통계 대시보드 (메인 상단) */}
+              {/* 강습 통계 대시보드 */}
               <div className="grid grid-cols-2 gap-3 mb-6">
-                  {/* 스키 통계 */}
                   <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
                       <div className="text-sm font-bold text-slate-700 mb-2 border-b border-slate-100 pb-1 flex justify-between items-center">
                           <span>⛷️ 스키 강습</span>
@@ -557,7 +557,6 @@ export default function GuideProChecklist() {
                           </div>
                       </div>
                   </div>
-                  {/* 보드 통계 */}
                   <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
                       <div className="text-sm font-bold text-slate-700 mb-2 border-b border-slate-100 pb-1 flex justify-between items-center">
                           <span>🏂 보드 강습</span>
@@ -580,6 +579,9 @@ export default function GuideProChecklist() {
                   {allTeamsSummary.map((teamData) => {
                       const styles = getTheme(teamData.team);
                       const isEmpty = teamData.count === 0;
+                      
+                      // 메인 카드 픽업 통계 순서: 총원 -> 홍대 -> 명동 -> 동대문 순서 고정
+                      const mainPickupOrder = ['총원', '홍대', '명동', '동대문'];
                       
                       return (
                           <div 
@@ -621,16 +623,23 @@ export default function GuideProChecklist() {
                                       />
                                   </div>
                                   <div className="grid grid-cols-4 gap-2 border-t border-slate-100 pt-3">
-                                      <div className="text-center border-r border-slate-100">
-                                          <span className="block text-[10px] text-slate-400 mb-0.5">총원</span>
-                                          <span className={`block text-lg font-black ${styles.text}`}>{isNaN(teamData.totalPax) ? 0 : teamData.totalPax}</span>
-                                      </div>
-                                      {Object.entries(teamData.pickupStats).slice(0, 3).map(([place, count]) => (
-                                          <div key={place} className="text-center">
-                                              <span className="block text-[10px] text-slate-400 mb-0.5 truncate px-1">{place}</span>
-                                              <span className="block text-base font-bold text-slate-700">{isNaN(count) ? 0 : count}</span>
-                                          </div>
-                                      ))}
+                                      {mainPickupOrder.map(place => {
+                                          let count = 0;
+                                          if (place === '총원') count = teamData.totalPax;
+                                          else count = teamData.pickupStats[place] || 0;
+                                          
+                                          // 총원은 글자 크게
+                                          const isTotal = place === '총원';
+
+                                          return (
+                                            <div key={place} className={`text-center ${isTotal ? 'border-r border-slate-100' : ''}`}>
+                                                <span className="block text-[10px] text-slate-400 mb-0.5 truncate px-1">{place}</span>
+                                                <span className={`block font-bold ${isTotal ? `text-lg ${styles.text}` : 'text-base text-slate-700'}`}>
+                                                    {isNaN(count) ? 0 : count}
+                                                </span>
+                                            </div>
+                                          );
+                                      })}
                                   </div>
                               </div>
                           </div>
@@ -669,7 +678,6 @@ export default function GuideProChecklist() {
                                 {teamDetailData.guides || '미정'}
                              </span>
                         </div>
-                        {/* 버스 정보 */}
                         <div className="flex items-start text-slate-600 mt-1">
                             <Bus size={16} className="mr-2 mt-0.5 flex-shrink-0 text-slate-400" />
                             <PhoneLinkedText 
@@ -680,14 +688,12 @@ export default function GuideProChecklist() {
                     </div>
                 </div>
                 
-                {/* 우측 상단 컨트롤 (새로고침 + 확인필요) */}
                 <div className="text-right flex flex-col items-end flex-shrink-0 ml-2 space-y-2">
                      <div className="flex gap-2">
-                        {/* 확인 필요 박스 (헤더로 이동) */}
                         {teamDetailData.notesCodes.length > 0 && (
                             <div className="flex flex-col items-center justify-center min-w-[max-content] px-2 py-1 rounded-lg border bg-rose-50 border-rose-100 text-rose-600 shadow-sm">
                                 <span className="text-[9px] font-medium opacity-80 mb-0.5 whitespace-nowrap flex items-center">
-                                    <FileText size={9} className="mr-1"/>확인필요
+                                    <FileText size={9} className="mr-1"/>확인
                                 </span>
                                 <div className="flex gap-1 max-w-[100px] overflow-hidden">
                                     {teamDetailData.notesCodes.slice(0, 3).map((code) => (
@@ -717,10 +723,9 @@ export default function GuideProChecklist() {
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-md">
         <div className="max-w-xl mx-auto">
             
-            {/* 1. 옵션 수량 요약 + HOT/강습 추가 */}
+            {/* 1. 옵션 수량 요약 + HOT/강습 추가 (강습 칩 스타일 변경) */}
             <div className="px-4 py-2 border-b border-slate-100 bg-white">
                 <div className="flex space-x-2 overflow-x-auto scrollbar-hide py-1 items-center">
-                    <SummaryPill label="총인원" total={stats.total} checked={stats.boardedPax} color="blue" />
                     <SummaryPill label="셔틀" total={stats.totalItems.shuttle} checked={stats.checkedItems.shuttle} color="slate" />
                     <SummaryPill label="리프트" total={stats.totalItems.lift} checked={stats.checkedItems.lift} color="violet" />
                     <SummaryPill label="무빙" total={stats.totalItems.moving} checked={stats.checkedItems.moving} color="amber" />
@@ -728,17 +733,14 @@ export default function GuideProChecklist() {
                     <SummaryPill label="관광L" total={stats.totalItems.sightseeing} checked={stats.checkedItems.sightseeing} color="emerald" />
                     
                     <SummaryPillInfo label="장비" total={stats.totalItems.equip} />
+                    {/* 강습 칩 스타일을 장비/의류와 동일하게 변경 (SummaryPillInfo 사용) */}
+                    <SummaryPillInfo label="강습" total={stats.totalItems.lesson} />
                     <SummaryPillInfo label="의류(E)" total={stats.totalItems.clothE} />
                     <SummaryPillInfo label="의류(S)" total={stats.totalItems.clothS} />
                     
-                    {/* HOT 인원 & 강습 인원 추가 */}
                     <div className="flex flex-col items-center justify-center min-w-[50px] px-2 py-1.5 rounded-lg border bg-rose-50 border-rose-100 text-rose-600">
                         <span className="text-[10px] font-bold opacity-70 mb-0.5 whitespace-nowrap">HOT</span>
                         <span className="text-sm font-black leading-none">{stats.totalItems.hot}</span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center min-w-[50px] px-2 py-1.5 rounded-lg border bg-blue-50 border-blue-100 text-blue-600">
-                        <span className="text-[10px] font-bold opacity-70 mb-0.5 whitespace-nowrap">강습</span>
-                        <span className="text-sm font-black leading-none">{stats.totalItems.lesson}</span>
                     </div>
                 </div>
             </div>
@@ -747,19 +749,37 @@ export default function GuideProChecklist() {
             <div className="px-4 py-3">
                 <div className="bg-slate-100/50 border border-slate-200 rounded-xl p-1 mb-2">
                     <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
-                        {sortedLocations.map(loc => (
-                            <button
-                                key={loc}
-                                onClick={() => setLocationFilter(loc)}
-                                className={`flex-1 min-w-[60px] whitespace-nowrap px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                                    locationFilter === loc
-                                    ? `${styles.button} text-white shadow-md`
-                                    : 'bg-transparent text-slate-500 hover:bg-white hover:shadow-sm'
-                                }`}
-                            >
-                                {loc}
-                            </button>
-                        ))}
+                        {sortedLocations.map(loc => {
+                            let total = 0;
+                            let boarded = 0;
+                            
+                            if (loc === '전체') {
+                                total = stats.total;
+                                boarded = stats.boardedPax;
+                            } else {
+                                total = stats.pickups[loc] || 0;
+                                boarded = stats.boardedPickups[loc] || 0;
+                            }
+                            
+                            const remaining = total - boarded;
+                            // 총원 버튼은 '전체', 나머지는 장소 이름
+                            const label = loc === '전체' ? '총원' : loc;
+                            const displayText = `${label} ${remaining}/${total}`;
+
+                            return (
+                                <button
+                                    key={loc}
+                                    onClick={() => setLocationFilter(loc)}
+                                    className={`flex-1 min-w-[max-content] whitespace-nowrap px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                                        locationFilter === loc
+                                        ? `${styles.button} text-white shadow-md`
+                                        : 'bg-transparent text-slate-500 hover:bg-white hover:shadow-sm'
+                                    }`}
+                                >
+                                    {displayText}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -814,7 +834,6 @@ function SummaryPill({ label, total, checked, color }) {
     if (total === 0 || isNaN(total)) return null;
     const colors = {
         slate: 'bg-slate-100 text-slate-600 border-slate-200',
-        blue: 'bg-blue-100 text-blue-700 border-blue-200',
         violet: 'bg-violet-50 text-violet-700 border-violet-100',
         amber: 'bg-amber-50 text-amber-700 border-amber-100',
         cyan: 'bg-cyan-50 text-cyan-700 border-cyan-100',
@@ -876,10 +895,7 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
 
     const btnClass = "flex items-center px-2.5 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 hover:bg-slate-200 transition-colors";
 
-    // HOT 감지: 행사명에 [HOT] 포함 시
     const isHot = data.event && (data.event.includes('[HOT]') || data.event.includes('HOT'));
-
-    // 버스 정보 중복 체크
     const showBusInfo = data.busInfo && data.busInfo.length > 5 && data.busInfo !== teamBusInfo;
 
     return (
@@ -888,15 +904,12 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
             ? `border-${styles.ring} ${styles.lightBg}` 
             : 'border-slate-200 hover:shadow-md'
         }`}>
-            {/* Header */}
             <div className="flex items-center p-3 border-b border-slate-50 bg-white/80">
-                {/* 팀 코드 박스 (색상 적용) */}
                 <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl flex-shrink-0 mr-3 shadow-sm border ${styles.badgeBg} ${styles.text} ${styles.border}`}>
                     <span className="text-2xl font-black">{data.code}</span>
                 </div>
                 
                 <div className="min-w-0 flex-1 mr-2">
-                    {/* 이름 + HOT 뱃지 */}
                     <div className="flex items-center gap-1 mb-0.5">
                         <h3 className={`font-bold truncate text-lg leading-tight ${isBoarded ? 'text-slate-400' : 'text-slate-800'}`}>
                             {data.name}
@@ -935,8 +948,6 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
             </div>
 
             <div className="p-3 bg-white">
-                
-                {/* 행사명 */}
                 {data.event && (
                     <div className="mb-3 text-xs font-medium text-slate-700 bg-slate-50/80 p-2 rounded-lg border border-slate-100 leading-snug">
                         {data.event}
@@ -965,7 +976,6 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     </button>
                 </div>
 
-                {/* 비고 (빨간색만 표시, 파란 메모 중복 제거) */}
                 {data.note && (
                     <div className="mb-3 p-2.5 bg-rose-50 border border-rose-100 rounded-lg flex items-start text-rose-700 text-sm">
                         <AlertCircle size={16} className="mt-0.5 mr-2 flex-shrink-0 text-rose-500"/>
@@ -973,7 +983,6 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     </div>
                 )}
 
-                {/* 개별 버스 정보 (중복 시 숨김) */}
                 {showBusInfo && (
                     <div className="mb-3 p-2 border border-slate-100 rounded-lg bg-slate-50/80">
                         <div className="text-[10px] text-slate-400 font-bold mb-0.5">개별 버스 정보</div>
