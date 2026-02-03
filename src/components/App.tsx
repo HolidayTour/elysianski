@@ -5,7 +5,7 @@ import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowfl
 const SHEET_ID = "1Celx7ApccgzrNwbw6VyZRqUG_zg1z_dp3WmBhTFDlF0";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 
-const APP_VERSION = "v3.1_Fix2"; // 자동 배차 데이터 연동 오류 수정
+const APP_VERSION = "v3.51_Fix"; // 실행 오류 수정 및 안정화 버전
 
 // --- 데이터 컬럼 매핑 ---
 const COLS = {
@@ -166,7 +166,11 @@ const extractPhoneNumber = (str) => {
 };
 
 const tryOpenDeepLink = (url) => {
-  try { window.location.href = url; } catch (e) { console.warn("Deep link failed", e); }
+  try {
+      window.location.href = url;
+  } catch (e) {
+      console.warn("Deep link failed", e);
+  }
 };
 
 const buildGroupedForTeam = (dataRows) => {
@@ -194,7 +198,7 @@ const buildGroupedForTeam = (dataRows) => {
   });
 };
 
-// --- 하위 컴포넌트들 ---
+// --- 컴포넌트들 ---
 
 const TopSummaryBox = ({ label, total, checked, color = "slate", simple = false }) => {
     if (total === 0 || isNaN(total)) return null;
@@ -318,12 +322,13 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
     const langInfo = getLangInfo(data.lang); 
     const platform = getPlatformInfo(data);
     
+    // 2행 구조 (라벨 / 아이콘+수량)
     const allOptions = [
         { id: 'lift', label: '리프트', val: data.items.lift, type: 'check', icon: CableCar, colorClass: 'bg-white text-violet-600 border-violet-200', textClass: 'text-slate-700', numClass: 'font-black' }, 
         { id: 'moving', label: '무빙', val: data.items.moving, type: 'check', icon: ChevronsRight, colorClass: 'bg-white text-amber-600 border-amber-200', textClass: 'text-slate-700', numClass: 'font-black' },
         { id: 'sled', label: '눈썰매', val: data.items.sled, type: 'check', icon: CloudSnow, colorClass: 'bg-white text-cyan-600 border-cyan-200', textClass: 'text-slate-700', numClass: 'font-black' },
         { id: 'sightseeing', label: '관광L', val: data.items.sightseeing, type: 'check', icon: Camera, colorClass: 'bg-white text-emerald-600 border-emerald-200', textClass: 'text-slate-700', numClass: 'font-black' },
-        { id: 'shuttle', label: '셔틀', val: data.items.shuttle, type: 'check', icon: Bus, colorClass: 'bg-white text-slate-500 border-slate-300', textClass: 'text-slate-600', numClass: 'font-bold' },
+        { id: 'shuttle', label: '셔틀', val: data.items.shuttle, type: 'check', icon: Bus, colorClass: 'bg-white text-slate-500 border-slate-300', textClass: 'text-slate-500', numClass: 'font-bold' },
         { id: 'equip', label: '장비', val: data.items.equip, type: 'info', icon: Backpack, textClass: 'text-slate-400', numClass: 'font-medium' },
         { id: 'lesson', label: '강습', val: data.items.lesson, type: 'info', icon: Users, textClass: 'text-slate-400', numClass: 'font-medium' },
         { id: 'clothE', label: '의류(E)', val: data.items.clothE, type: 'info', icon: Shirt, textClass: 'text-slate-400', numClass: 'font-medium' },
@@ -341,26 +346,30 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
 
     return (
         <div id={`card-${data.code}`} className={`rounded-2xl border shadow-sm bg-white overflow-hidden transition-all duration-300 ${isBoarded ? `border-blue-200 bg-blue-50/10` : 'border-slate-200 hover:shadow-md'} mb-4`}>
+            {/* Header: Always Visible - Click to Toggle Open/Close */}
             <div 
                 className="p-4 border-b border-slate-50 bg-white cursor-pointer active:bg-slate-50 transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
             >
+                {/* 1. 상단 정보 (코드, 예약번호, 탑승버튼) */}
                 <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">
                         <div className={`flex items-center justify-center w-8 h-8 rounded-lg shadow-sm border text-sm font-black ${styles.badgeBg} ${styles.text} ${styles.border}`}>
                             {data.code.substring(0, 2)}
                         </div>
-                        {platform && <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${platform.color}`}>{platform.label}</span>}
+                        {/* 예약번호 */}
                         <button onClick={(e) => { e.stopPropagation(); handleCopy(data.resNo); }} className="flex items-center text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 transition-colors">
                             {copied ? <Check size={10} className="text-green-500 mr-1"/> : <Copy size={10} className="mr-1"/>}
                             <span className={`font-mono ${copied ? 'text-green-600' : ''}`}>{data.resNo}</span>
                         </button>
                     </div>
+                    {/* 탑승 버튼: 클릭 이벤트 전파 방지 */}
                     <button onClick={(e) => { e.stopPropagation(); onToggleBoarding(); }} className={`flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm border ${isBoarded ? `bg-white border-blue-600 text-blue-600` : `bg-white text-slate-400 border-slate-200`}`}>
                         <Check size={12} className={`mr-1 ${isBoarded ? 'text-blue-600' : 'text-slate-300'}`} strokeWidth={3}/>{isBoarded ? '탑승완료' : '탑승'}
                     </button>
                 </div>
 
+                {/* 2. 이름 */}
                 <div className="mb-2">
                     <div className="flex items-center gap-1.5">
                         <h3 className="font-bold text-xl text-slate-900 leading-none">{data.name}</h3>
@@ -368,6 +377,7 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     </div>
                 </div>
 
+                {/* 3. 상세 정보 뱃지들 */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="flex items-center text-xs font-bold text-slate-600"><Users size={12} className="mr-0.5"/> {data.pax}명</span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${langInfo.color}`}>{langInfo.label}</span>
@@ -375,6 +385,7 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     {assignedSeat && <span className="flex items-center text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><Bus size={10} className="mr-0.5"/>{assignedSeat}</span>}
                 </div>
 
+                {/* PKG Name & Memo */}
                 <div className="mt-3 space-y-2">
                      {data.event && (
                         <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
@@ -383,16 +394,18 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                              </p>
                         </div>
                     )}
+                    {/* Memo (Yellow Box) */}
                     {memo && (
-                        <div className="bg-white p-2 rounded-lg border border-rose-500 shadow-md animate-in fade-in slide-in-from-top-1">
-                            <div className="flex items-center mb-1">
-                                <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider">📝 MEMO</span>
-                            </div>
-                            <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap flex items-start">{memo}</p>
+                        <div className="bg-yellow-50 p-2 rounded-lg border border-yellow-200 animate-in fade-in slide-in-from-top-1 shadow-sm">
+                            <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap flex items-start">
+                                <AlertCircle size={12} className="text-yellow-600 mr-1.5 mt-0.5 flex-shrink-0"/>
+                                {memo}
+                            </p>
                         </div>
                     )}
                 </div>
                 
+                {/* Options Box (Always Visible) */}
                 <div className="flex w-full gap-2 overflow-x-auto scrollbar-hide py-3 mt-1 border-t border-slate-50" onClick={(e) => e.stopPropagation()}>
                     {allOptions.map((item) => {
                         const isDistributed = dist[item.id];
@@ -423,17 +436,21 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     })}
                 </div>
                 
+                 {/* Chevron */}
                  <div className="flex justify-center mt-0 opacity-20">
                     {isOpen ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                  </div>
             </div>
 
+            {/* Collapsible Body (Contact & Inline Memo Input) */}
             {isOpen && (
                 <div className="p-4 pt-0 bg-white space-y-3 animate-in slide-in-from-top-2">
+                    {/* Contact Row: Phone | Messenger | Memo Button */}
                     <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-50">
                          {data.contact && (<a href={`tel:${data.contact}`} className={btnClass} onClick={(e) => e.stopPropagation()}><Phone size={14} className="mr-1.5"/>전화</a>)}
                          <div className="col-span-2">{data.appId && <MessengerLink text={data.appId} />}</div>
                          
+                         {/* 특이사항 버튼 */}
                          <button 
                             onClick={(e) => { e.stopPropagation(); setIsEditingMemo(!isEditingMemo); }} 
                             className={`flex items-center justify-center px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${memo ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
@@ -442,6 +459,7 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                          </button>
                     </div>
 
+                    {/* Inline Memo Input */}
                     {isEditingMemo && (
                         <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 mt-3 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
                             <textarea 
@@ -465,7 +483,6 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
     );
 };
 
-// ... BusSeatMap, BusManager ... (기존 유지)
 const BusSeatMap = ({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats }) => {
     const renderSeat = (seatNum) => {
         const passenger = seatMap[seatNum];
@@ -613,10 +630,36 @@ const BusManager = ({ isOpen, onClose, teamData, teamName, setSeatMap }) => {
     );
 };
 
+const TeamSelector = ({ allTeamsSummary, onSelect }) => {
+    return (
+        <div className="p-4 space-y-4 pb-20">
+             <div className="flex items-center mb-2">
+                 <h2 className="text-lg font-bold text-slate-800">팀을 선택하세요</h2>
+             </div>
+             {allTeamsSummary.map((team) => {
+                 const styles = TEAM_THEMES[team.team] || TEAM_THEMES['DEFAULT'];
+                 return (
+                     <div key={team.team} onClick={() => onSelect(team.team)} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer">
+                          <div className={`absolute right-0 top-0 w-20 h-20 rounded-bl-full opacity-10 ${styles.bg}`}></div>
+                          <div className="flex items-center">
+                              <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-sm border mr-4 ${styles.badgeBg} ${styles.text} ${styles.border}`}>
+                                  {team.team}
+                              </div>
+                              <div>
+                                  <h4 className="font-bold text-slate-800 text-lg leading-tight mb-1">{team.guides || '가이드 미정'}</h4>
+                                  <span className="text-xs text-slate-500 font-medium">총 {team.totalPax}명</span>
+                              </div>
+                          </div>
+                     </div>
+                 );
+             })}
+        </div>
+    );
+};
+
 const Dashboard = ({ allTeamsSummary, stats, onTeamClick }) => {
     return (
         <div className="p-4 space-y-4 pb-20">
-            {/* 1. Overall Stats Card */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
                 <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><Users size={20} className="mr-2 text-blue-600"/> 종합 현황</h2>
                 <div className="flex items-center justify-between mb-6">
@@ -642,7 +685,6 @@ const Dashboard = ({ allTeamsSummary, stats, onTeamClick }) => {
                     </div>
                 </div>
                 
-                {/* Ski / Board / Lesson Breakdown */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                         <div className="flex items-center justify-between mb-2">
@@ -667,7 +709,6 @@ const Dashboard = ({ allTeamsSummary, stats, onTeamClick }) => {
                 </div>
             </div>
 
-            {/* 2. Team Cards */}
             <h3 className="font-bold text-slate-700 text-lg px-1">팀별 현황</h3>
             {allTeamsSummary.map((team) => {
                 const styles = TEAM_THEMES[team.team] || TEAM_THEMES['DEFAULT'];
@@ -715,15 +756,6 @@ const MessageCenter = ({ isOpen, onClose, teamData, teamName, seatMap }) => {
     
     const handleGuideNameChange = (e) => { setGuideName(e.target.value); localStorage.setItem('tm_guideName', e.target.value); };
     const handleGlobalNoticeChange = (e) => { setGlobalNotice(e.target.value); localStorage.setItem('tm_globalNotice', e.target.value); };
-
-    // Group info logic
-    const groups = useMemo(() => {
-        if (!teamData || !teamData.list) return [];
-        return teamData.list.map((group, idx) => ({
-            ...group,
-            groupLabel: `${teamName}${idx+1}`
-        }));
-    }, [teamData, teamName]);
 
     const getAssignedSeats = (group) => {
         const assigned = [];
@@ -820,8 +852,10 @@ export default function App() {
   const [tourDate, setTourDate] = useState({ date: '', type: '' });
   
   const [activeTab, setActiveTab] = useState('home'); // Tab State
-  const [selectedTeam, setSelectedTeam] = useState(null); // Changed: Start with null for Dashboard
+  const [selectedTeam, setSelectedTeam] = useState(null); 
   const [locationFilter, setLocationFilter] = useState('전체');
+  const [busSelectedTeam, setBusSelectedTeam] = useState(null); // Bus tab team selection
+  const [msgSelectedTeam, setMsgSelectedTeam] = useState(null); // Msg tab team selection
   
   const [appState, setAppState] = useState({});
   const [seatMap, setSeatMap] = useState({}); 
@@ -834,11 +868,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-      if (selectedTeam) {
-          const savedMap = localStorage.getItem(`tm_seatMap_${selectedTeam}`);
+      // Load seat map for selected team in Bus/Msg tab or Main Detail
+      const target = activeTab === 'bus' ? busSelectedTeam : (activeTab === 'message' ? msgSelectedTeam : selectedTeam);
+      if (target) {
+          const savedMap = localStorage.getItem(`tm_seatMap_${target}`);
           setSeatMap(savedMap ? JSON.parse(savedMap) : {});
       }
-  }, [selectedTeam, activeTab]); 
+  }, [selectedTeam, busSelectedTeam, msgSelectedTeam, activeTab]); 
 
   const saveState = (newState) => { setAppState(newState); localStorage.setItem('guide_pro_state_v40', JSON.stringify(newState)); };
 
@@ -892,33 +928,17 @@ export default function App() {
   const availableTeams = useMemo(() => [...new Set(rawData.map(d => d.team).filter(Boolean))].sort(), [rawData]);
 
   const groupedList = useMemo(() => {
-    // If no team selected, provide data for the first available team as fallback for components that need data (like BusManager on init)
-    // OR return empty if we want strict behavior.
-    // For BusManager auto-assign fix: if user goes to Bus tab without selecting team, default to first team.
-    const targetTeam = selectedTeam || availableTeams[0]; 
+    // Determine target team based on tab
+    let targetTeam = null;
+    if (activeTab === 'home') targetTeam = selectedTeam;
+    else if (activeTab === 'bus') targetTeam = busSelectedTeam;
+    else if (activeTab === 'message') targetTeam = msgSelectedTeam;
+    
     if (!targetTeam) return [];
     
     const currentTeamData = rawData.filter(d => d.team === targetTeam);
-    const groups = new Map();
-    currentTeamData.forEach(item => {
-        const key = item.contact && item.contact.length > 5 ? item.contact.replace(/[-\s]/g, '') : item.name.trim().toLowerCase();
-        if (!groups.has(key)) {
-            groups.set(key, { ...item, codes: [item.code], members: [item] });
-        } else {
-            const group = groups.get(key);
-            group.codes.push(item.code);
-            group.members.push(item);
-            group.pax += item.pax; 
-            Object.keys(group.items).forEach(k => { group.items[k] += item.items[k]; });
-            if (!group.note && item.note) group.note = item.note;
-        }
-    });
-    // Add Group Labels for list display
-    return Array.from(groups.values()).sort((a, b) => {
-        const codeA = a.codes[0] || ""; const codeB = b.codes[0] || "";
-        return codeA.localeCompare(codeB, undefined, { numeric: true });
-    }).map((g, i) => ({...g, groupLabel: `${targetTeam}${i+1}`}));
-  }, [rawData, selectedTeam, availableTeams]);
+    return buildGroupedForTeam(currentTeamData).map((g, i) => ({...g, groupLabel: `${targetTeam}${i+1}`}));
+  }, [rawData, selectedTeam, busSelectedTeam, msgSelectedTeam, activeTab]);
 
   const currentList = useMemo(() => {
     if (locationFilter === '전체') return groupedList;
@@ -931,7 +951,6 @@ export default function App() {
       totalItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0, hot: 0 },
       checkedItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0 }
     };
-    // ... stats calculation (same) ...
     return groupedList.reduce((acc, curr) => {
       acc.total += (curr.pax || 0);
       if (appState[curr.id]?.boarded) acc.boardedPax += (curr.pax || 0);
@@ -944,7 +963,6 @@ export default function App() {
       const dist = appState[curr.id]?.distributed || {};
       if(dist.lift) acc.checkedItems.lift += curr.items.lift;
       if(dist.moving) acc.checkedItems.moving += curr.items.moving;
-      // ... others ...
       return acc;
     }, initialStats);
   }, [groupedList, appState]);
@@ -1017,23 +1035,22 @@ export default function App() {
   const toggleBoarding = (id) => { const current = appState[id] || {}; saveState({ ...appState, [id]: { ...current, boarded: !current.boarded } }); };
   const toggleDistribution = (id, key) => { const current = appState[id] || {}; const currentDist = current.distributed || {}; saveState({ ...appState, [id]: { ...current, distributed: { ...currentDist, [key]: !currentDist[key] } } }); };
   const updateMemo = (id, text) => { const current = appState[id] || {}; saveState({ ...appState, [id]: { ...current, memo: text } }); };
-
-  // Helper for seat finding
-  const findAssignedSeat = (passengerId) => {
-      if (!seatMap) return null;
-      const entry = Object.entries(seatMap).find(([seat, p]) => p.id === passengerId);
-      return entry ? entry[0] : null;
-  };
+  const findAssignedSeat = (passengerId) => { if (!seatMap) return null; const entry = Object.entries(seatMap).find(([seat, p]) => p.id === passengerId); return entry ? entry[0] : null; };
 
   // Handlers for Navigation
   const handleTeamClick = (team) => {
       setSelectedTeam(team);
       setActiveTab('home'); // Ensure we are on home tab
   };
+  const handleBackToDashboard = () => { setSelectedTeam(null); };
 
-  const handleBackToDashboard = () => {
-      setSelectedTeam(null);
+  const handleTabChange = (tabId) => {
+      setActiveTab(tabId);
+      // Reset team selections when switching tabs to show selector
+      if (tabId === 'bus') setBusSelectedTeam(null);
+      if (tabId === 'message') setMsgSelectedTeam(null);
   };
+
 
   // Render Content based on activeTab
   const renderContent = () => {
@@ -1042,9 +1059,32 @@ export default function App() {
 
       switch(activeTab) {
         case 'bus':
-            return <BusManager isOpen={true} onClose={() => {}} teamData={{list: groupedList}} teamName={selectedTeam || availableTeams[0]} setSeatMap={(m) => { setSeatMap(m); localStorage.setItem(`tm_seatMap_${selectedTeam || availableTeams[0]}`, JSON.stringify(m)); }} />;
+            if (!busSelectedTeam) {
+                return <TeamSelector allTeamsSummary={allTeamsSummary} onSelect={setBusSelectedTeam} />;
+            }
+            return (
+                <div>
+                     {/* Back Button for Bus Manager */}
+                    <div className="bg-white px-4 py-3 flex items-center border-b border-slate-200 sticky top-0 z-10">
+                        <button onClick={() => setBusSelectedTeam(null)} className="p-1 -ml-2 mr-2 text-slate-500 hover:text-slate-800"><ChevronLeft size={24}/></button>
+                        <h2 className="font-bold text-lg text-slate-800">버스 배차 관리 ({busSelectedTeam}팀)</h2>
+                    </div>
+                    <BusManager isOpen={true} onClose={() => setBusSelectedTeam(null)} teamData={{list: groupedList}} teamName={busSelectedTeam} setSeatMap={(m) => { setSeatMap(m); localStorage.setItem(`tm_seatMap_${busSelectedTeam}`, JSON.stringify(m)); }} />
+                </div>
+            );
         case 'message':
-            return <MessageCenter isOpen={true} onClose={() => {}} teamData={{list: groupedList}} teamName={selectedTeam || availableTeams[0]} seatMap={seatMap} />;
+             if (!msgSelectedTeam) {
+                return <TeamSelector allTeamsSummary={allTeamsSummary} onSelect={setMsgSelectedTeam} />;
+            }
+            return (
+                 <div>
+                    <div className="bg-white px-4 py-3 flex items-center border-b border-slate-200 sticky top-0 z-10">
+                        <button onClick={() => setMsgSelectedTeam(null)} className="p-1 -ml-2 mr-2 text-slate-500 hover:text-slate-800"><ChevronLeft size={24}/></button>
+                        <h2 className="font-bold text-lg text-slate-800">메시지 센터 ({msgSelectedTeam}팀)</h2>
+                    </div>
+                    <MessageCenter isOpen={true} onClose={() => setMsgSelectedTeam(null)} teamData={{list: groupedList}} teamName={msgSelectedTeam} seatMap={seatMap} />
+                </div>
+            );
         case 'menu':
             return (
                 <div className="p-4 space-y-4">
