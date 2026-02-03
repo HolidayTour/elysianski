@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowflake, ArrowUpRight, Mountain, ClipboardList, Mail, MapPin, Shirt, ChevronLeft, Calendar, ExternalLink, Lock, Copy, FileText, PenLine, Flame, Download, Share2, MessageSquare, Truck, Settings, Save, Disc, DoorOpen, ArrowRightLeft, User, Globe, Repeat, Ban, Camera, ChevronsRight, CableCar, CloudSnow, Backpack, X, FileSpreadsheet, Home, Menu } from 'lucide-react';
+import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowflake, ArrowUpRight, Mountain, ClipboardList, Mail, MapPin, Shirt, ChevronLeft, Calendar, ExternalLink, Lock, Copy, FileText, PenLine, Flame, Download, Share2, MessageSquare, Truck, Settings, Save, Disc, DoorOpen, ArrowRightLeft, User, Globe, Repeat, Ban, Camera, ChevronsRight, CableCar, CloudSnow, Backpack, X, FileSpreadsheet, Home, Menu, PhoneCall, ChevronDown, ChevronUp } from 'lucide-react';
 
 // *** 구글 시트 데이터 연결 ***
 const SHEET_ID = "1Celx7ApccgzrNwbw6VyZRqUG_zg1z_dp3WmBhTFDlF0";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 
-const APP_VERSION = "v2.1"; // 하단 네비게이션, 상세카드 디자인(1행 스크롤), 오류 수정
+const APP_VERSION = "v3.1_Fix2"; // 자동 배차 데이터 연동 오류 수정
 
 // --- 데이터 컬럼 매핑 ---
 const COLS = {
   TEAM: 0, GUIDE: 1, BUS_INFO: 2, CODE: 3, EVENT: 4, RES_NO: 5, NAME: 6, CONTACT: 7, APP_ID: 8, EMAIL: 9, LANG: 10, PAX: 11, PICKUP: 12, SHUTTLE: 13, SLED: 14, SIGHTSEEING: 15, MOVING: 16, LIFT: 17, EQUIP: 18, LESSON: 19, CLOTH_E: 20, CLOTH_S: 21, NOTE: 22
 };
 
-// --- 전역 테마 (ReferenceError 방지용 최상단 선언) ---
+// --- 전역 테마 ---
 const UNIFIED_THEME = {
     bg: 'bg-white', border: 'border-slate-200', text: 'text-slate-800',
     badgeBg: 'bg-white', badgeText: 'text-blue-600', button: 'bg-blue-600 border-blue-600',
@@ -87,31 +87,20 @@ const getPlatformInfo = (item) => {
     const appId = (item.appId || '').toUpperCase();
     const code = (item.code || '').toUpperCase();
     
-    if (resNo.includes('KK') || appId.includes('KKDAY')) {
-        return { label: 'K', color: 'bg-cyan-500 text-white border-cyan-600' };
-    }
+    if (resNo.includes('KK') || appId.includes('KKDAY')) { return { label: 'K', color: 'text-cyan-500' }; }
     const klookPattern = /[A-Z0-9]{6,}/; 
-    if ((klookPattern.test(resNo) && !resNo.startsWith('TK')) || appId.includes('KLOOK') || code.includes('KLOOK')) {
-        return { label: 'K', color: 'bg-orange-500 text-white border-orange-600' };
-    }
-    if (resNo.includes('Q') || appId.includes('QIKE')) {
-        return { label: 'Q', color: 'bg-emerald-500 text-white border-emerald-600' };
-    }
+    if ((klookPattern.test(resNo) && !resNo.startsWith('TK')) || appId.includes('KLOOK') || code.includes('KLOOK')) { return { label: 'K', color: 'text-orange-500' }; }
+    if (resNo.includes('Q') || appId.includes('QIKE')) { return { label: 'Q', color: 'text-emerald-500' }; }
     return null; 
 };
 
 const getLangInfo = (lang) => {
     const lower = (lang || '').toLowerCase();
-    if (lower.includes('taiwan') || lower.includes('대만')) 
-        return { label: '대만', color: 'bg-white text-red-600 border-red-200 border', type: 'cn' };
-    if (lower.includes('hong') || lower.includes('홍콩')) 
-        return { label: '홍콩', color: 'bg-white text-red-600 border-red-200 border', type: 'cn' };
-    if (lower.includes('chi') || lower.includes('중국') || lower.includes('cn')) 
-        return { label: '중국어', color: 'bg-white text-red-600 border-red-200 border', type: 'cn' }; 
-    if (lower.includes('eng') || lower.includes('영어') || lower.includes('en')) 
-        return { label: '영어', color: 'bg-white text-blue-600 border-blue-200 border', type: 'en' };
-    if (lower.includes('kor') || lower.includes('한국')) 
-        return { label: '한국', color: 'bg-white text-slate-600 border-slate-200 border', type: 'kr' };
+    if (lower.includes('taiwan') || lower.includes('대만')) return { label: '대만', color: 'bg-white text-red-600 border-red-200 border', type: 'cn' };
+    if (lower.includes('hong') || lower.includes('홍콩')) return { label: '홍콩', color: 'bg-white text-red-600 border-red-200 border', type: 'cn' };
+    if (lower.includes('chi') || lower.includes('중국') || lower.includes('cn')) return { label: '중국어', color: 'bg-white text-red-600 border-red-200 border', type: 'cn' }; 
+    if (lower.includes('eng') || lower.includes('영어') || lower.includes('en')) return { label: '영어', color: 'bg-white text-blue-600 border-blue-200 border', type: 'en' };
+    if (lower.includes('kor') || lower.includes('한국')) return { label: '한국', color: 'bg-white text-slate-600 border-slate-200 border', type: 'kr' };
     return { label: '기타', color: 'bg-white text-blue-600 border-blue-200 border', type: 'en' }; 
 };
 
@@ -171,12 +160,13 @@ const toE164KR = (num) => {
   return `+${only}`;
 };
 
+const extractPhoneNumber = (str) => {
+    if (!str) return '';
+    return str.match(/\d{2,3}[-\s]?\d{3,4}[-\s]?\d{4}/)?.[0] || '';
+};
+
 const tryOpenDeepLink = (url) => {
-  try {
-      window.location.href = url;
-  } catch (e) {
-      console.warn("Deep link failed", e);
-  }
+  try { window.location.href = url; } catch (e) { console.warn("Deep link failed", e); }
 };
 
 const buildGroupedForTeam = (dataRows) => {
@@ -193,9 +183,15 @@ const buildGroupedForTeam = (dataRows) => {
       g.codes.push(item.code);
       g.members.push(item);
       g.pax += (item.pax || 0);
+      Object.keys(g.items).forEach(k => { g.items[k] += (item.items?.[k] || 0); });
+      if (!g.note && item.note) g.note = item.note;
     }
   });
-  return Array.from(groups.values());
+  return Array.from(groups.values()).sort((a, b) => {
+      const codeA = a.codes?.[0] || "";
+      const codeB = b.codes?.[0] || "";
+      return codeA.localeCompare(codeB, undefined, { numeric: true });
+  });
 };
 
 // --- 하위 컴포넌트들 ---
@@ -203,21 +199,26 @@ const buildGroupedForTeam = (dataRows) => {
 const TopSummaryBox = ({ label, total, checked, color = "slate", simple = false }) => {
     if (total === 0 || isNaN(total)) return null;
     const colors = {
-        slate: 'bg-white border-slate-200 text-slate-600',
+        slate: 'bg-white border-slate-200 text-slate-400',
+        gray: 'bg-white border-slate-300 text-slate-500',
         violet: 'bg-white border-violet-200 text-violet-600',
         amber: 'bg-white border-amber-200 text-amber-600',
         cyan: 'bg-white border-cyan-200 text-cyan-600',
         emerald: 'bg-white border-emerald-200 text-emerald-600',
     };
-    const style = colors[color];
+    const style = colors[color] || colors.slate;
     const remaining = checked !== undefined ? total - checked : null;
     const showRemaining = !simple && remaining !== null && checked > 0;
+    
+    let numClass = 'text-xl font-black leading-none tracking-tight';
+    if (color === 'slate') numClass = 'text-lg font-medium leading-none tracking-tight'; 
+    if (color === 'gray') numClass = 'text-lg font-bold leading-none tracking-tight'; 
 
     return (
         <div className={`flex flex-col items-center justify-center p-1.5 rounded-xl border flex-shrink-0 min-w-[3.5rem] h-[3.8rem] shadow-sm ${style}`}>
-            <span className="text-[10px] font-bold mb-0.5 opacity-70">{label}</span>
+            <span className="text-[10px] font-bold mb-0.5 opacity-80">{label}</span>
             <div className="flex items-end gap-0.5">
-                <span className="text-xl font-black leading-none tracking-tight">{total}</span>
+                <span className={numClass}>{total}</span>
                 {showRemaining && (<span className="text-[10px] font-bold opacity-60 mb-0.5">({remaining})</span>)}
             </div>
         </div>
@@ -303,78 +304,63 @@ const MessengerLink = ({ text }) => {
     }
 };
 
-const MemoModal = ({ isOpen, onClose, onSave, initialValue }) => {
-    const [text, setText] = useState(initialValue);
-    useEffect(() => { if (isOpen) setText(initialValue); }, [isOpen, initialValue]);
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-            <div className="bg-white w-full max-w-sm rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <h3 className="font-bold text-slate-800 flex items-center text-sm"><PenLine size={16} className="mr-2"/> 특이사항 입력</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X size={20}/></button>
-                </div>
-                <div className="p-4">
-                    <textarea value={text} onChange={(e) => setText(e.target.value)} className="w-full h-32 p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none bg-slate-50" placeholder="특이사항을 입력하세요..." autoFocus/>
-                    <div className="mt-2 text-xs text-slate-500 flex items-center"><AlertCircle size={12} className="mr-1"/> 특이사항 입력 시 버튼이 빨간색으로 변경됩니다.</div>
-                    <button onClick={() => { onSave(text); onClose(); }} className="w-full mt-4 py-3 bg-slate-800 text-white rounded-lg font-bold text-sm hover:bg-slate-700 active:scale-95 transition-all">저장</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, onUpdateMemo, theme, styles, assignedSeat }) => {
     const isBoarded = state.boarded;
     const memo = state.memo || '';
     const dist = state.distributed || {};
     const [copied, setCopied] = useState(false);
-    const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
-    const [isMemoExpanded, setIsMemoExpanded] = useState(false);
+    
+    const [isOpen, setIsOpen] = useState(false);
+    const [isEditingMemo, setIsEditingMemo] = useState(false);
+    const [tempMemo, setTempMemo] = useState(memo);
 
     const handleCopy = (text) => { copyToClipboard(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
     const langInfo = getLangInfo(data.lang); 
     const platform = getPlatformInfo(data);
     
-    // 2행 구조 (라벨 / 아이콘+수량)
     const allOptions = [
-        { id: 'lift', label: '리프트', val: data.items.lift, type: 'check', icon: CableCar, colorClass: 'bg-white text-violet-600 border-violet-200' },
-        { id: 'moving', label: '무빙', val: data.items.moving, type: 'check', icon: ChevronsRight, colorClass: 'bg-white text-amber-600 border-amber-200' },
-        { id: 'sled', label: '눈썰매', val: data.items.sled, type: 'check', icon: CloudSnow, colorClass: 'bg-white text-cyan-600 border-cyan-200' },
-        { id: 'sightseeing', label: '관광L', val: data.items.sightseeing, type: 'check', icon: Camera, colorClass: 'bg-white text-emerald-600 border-emerald-200' },
-        { id: 'shuttle', label: '셔틀', val: data.items.shuttle, type: 'check', icon: Bus, colorClass: 'bg-white text-slate-600 border-slate-200' },
-        { id: 'equip', label: '장비', val: data.items.equip, type: 'info', icon: Backpack },
-        { id: 'lesson', label: '강습', val: data.items.lesson, type: 'info', icon: Users },
-        { id: 'clothE', label: '의류(E)', val: data.items.clothE, type: 'info', icon: Shirt },
-        { id: 'clothS', label: '의류(S)', val: data.items.clothS, type: 'info', icon: Shirt },
+        { id: 'lift', label: '리프트', val: data.items.lift, type: 'check', icon: CableCar, colorClass: 'bg-white text-violet-600 border-violet-200', textClass: 'text-slate-700', numClass: 'font-black' }, 
+        { id: 'moving', label: '무빙', val: data.items.moving, type: 'check', icon: ChevronsRight, colorClass: 'bg-white text-amber-600 border-amber-200', textClass: 'text-slate-700', numClass: 'font-black' },
+        { id: 'sled', label: '눈썰매', val: data.items.sled, type: 'check', icon: CloudSnow, colorClass: 'bg-white text-cyan-600 border-cyan-200', textClass: 'text-slate-700', numClass: 'font-black' },
+        { id: 'sightseeing', label: '관광L', val: data.items.sightseeing, type: 'check', icon: Camera, colorClass: 'bg-white text-emerald-600 border-emerald-200', textClass: 'text-slate-700', numClass: 'font-black' },
+        { id: 'shuttle', label: '셔틀', val: data.items.shuttle, type: 'check', icon: Bus, colorClass: 'bg-white text-slate-500 border-slate-300', textClass: 'text-slate-600', numClass: 'font-bold' },
+        { id: 'equip', label: '장비', val: data.items.equip, type: 'info', icon: Backpack, textClass: 'text-slate-400', numClass: 'font-medium' },
+        { id: 'lesson', label: '강습', val: data.items.lesson, type: 'info', icon: Users, textClass: 'text-slate-400', numClass: 'font-medium' },
+        { id: 'clothE', label: '의류(E)', val: data.items.clothE, type: 'info', icon: Shirt, textClass: 'text-slate-400', numClass: 'font-medium' },
+        { id: 'clothS', label: '의류(S)', val: data.items.clothS, type: 'info', icon: Shirt, textClass: 'text-slate-400', numClass: 'font-medium' },
     ].filter(item => item.val > 0);
 
     const btnClass = "flex items-center justify-center px-3 py-2 bg-slate-50 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 hover:bg-slate-100 transition-colors";
     const isHot = data.event && (data.event.includes('[HOT]') || data.event.includes('HOT'));
     const boxWidthClass = allOptions.length <= 5 ? 'flex-none w-[4.5rem]' : 'flex-1 min-w-[3.5rem]';
 
+    const handleSaveMemo = () => {
+        onUpdateMemo(data.id, tempMemo);
+        setIsEditingMemo(false);
+    };
+
     return (
         <div id={`card-${data.code}`} className={`rounded-2xl border shadow-sm bg-white overflow-hidden transition-all duration-300 ${isBoarded ? `border-blue-200 bg-blue-50/10` : 'border-slate-200 hover:shadow-md'} mb-4`}>
-            {/* Header: 1.Code/Platform/ResNo/Boarding, 2.Name, 3.Info */}
-            <div className="p-4 border-b border-slate-50 bg-white">
-                {/* 1. 상단 정보 (코드, 플랫폼, 예약번호, 탑승버튼) */}
+            <div 
+                className="p-4 border-b border-slate-50 bg-white cursor-pointer active:bg-slate-50 transition-colors"
+                onClick={() => setIsOpen(!isOpen)}
+            >
                 <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">
                         <div className={`flex items-center justify-center w-8 h-8 rounded-lg shadow-sm border text-sm font-black ${styles.badgeBg} ${styles.text} ${styles.border}`}>
                             {data.code.substring(0, 2)}
                         </div>
-                        {platform && <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${platform.color.split(' ')[0]}`}>{platform.label}</span>}
+                        {platform && <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${platform.color}`}>{platform.label}</span>}
                         <button onClick={(e) => { e.stopPropagation(); handleCopy(data.resNo); }} className="flex items-center text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 transition-colors">
                             {copied ? <Check size={10} className="text-green-500 mr-1"/> : <Copy size={10} className="mr-1"/>}
                             <span className={`font-mono ${copied ? 'text-green-600' : ''}`}>{data.resNo}</span>
                         </button>
                     </div>
-                    <button onClick={onToggleBoarding} className={`flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm border ${isBoarded ? `bg-white border-blue-600 text-blue-600` : `bg-white text-slate-400 border-slate-200`}`}>
+                    <button onClick={(e) => { e.stopPropagation(); onToggleBoarding(); }} className={`flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm border ${isBoarded ? `bg-white border-blue-600 text-blue-600` : `bg-white text-slate-400 border-slate-200`}`}>
                         <Check size={12} className={`mr-1 ${isBoarded ? 'text-blue-600' : 'text-slate-300'}`} strokeWidth={3}/>{isBoarded ? '탑승완료' : '탑승'}
                     </button>
                 </div>
 
-                {/* 2. 이름 */}
                 <div className="mb-2">
                     <div className="flex items-center gap-1.5">
                         <h3 className="font-bold text-xl text-slate-900 leading-none">{data.name}</h3>
@@ -382,7 +368,6 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     </div>
                 </div>
 
-                {/* 3. 상세 정보 뱃지들 */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="flex items-center text-xs font-bold text-slate-600"><Users size={12} className="mr-0.5"/> {data.pax}명</span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${langInfo.color}`}>{langInfo.label}</span>
@@ -390,79 +375,99 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     {assignedSeat && <span className="flex items-center text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><Bus size={10} className="mr-0.5"/>{assignedSeat}</span>}
                 </div>
 
-                {/* Product Name (Optional) */}
-                {data.event && (
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-3">
-                        <p className="text-xs text-slate-600 font-medium leading-snug line-clamp-2">{data.event}</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Options & Contact */}
-            <div className="p-4 pt-3 bg-white space-y-3">
-                {/* Options Grid (1 Line Scroll) */}
-                <div className="flex w-full gap-2 overflow-x-auto scrollbar-hide py-1">
+                <div className="mt-3 space-y-2">
+                     {data.event && (
+                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                             <p className="text-xs text-slate-600 font-medium leading-snug line-clamp-2">
+                                <span className="font-bold text-blue-600 mr-1">PKG</span>{data.event}
+                             </p>
+                        </div>
+                    )}
+                    {memo && (
+                        <div className="bg-white p-2 rounded-lg border border-rose-500 shadow-md animate-in fade-in slide-in-from-top-1">
+                            <div className="flex items-center mb-1">
+                                <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider">📝 MEMO</span>
+                            </div>
+                            <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap flex items-start">{memo}</p>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="flex w-full gap-2 overflow-x-auto scrollbar-hide py-3 mt-1 border-t border-slate-50" onClick={(e) => e.stopPropagation()}>
                     {allOptions.map((item) => {
                         const isDistributed = dist[item.id];
                         const isCheckItem = item.type === 'check';
+
                         if (isCheckItem) {
                             return (
-                                <button key={item.id} onClick={() => onToggleDist(data.id, item.id)} className={`relative flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-95 flex-shrink-0 ${boxWidthClass} ${isDistributed ? 'bg-slate-50 border-slate-200 text-slate-300 shadow-inner' : `${item.colorClass} shadow-sm`}`}>
+                                <button key={item.id} onClick={() => onToggleDist(data.id, item.id)} className={`relative flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-95 flex-shrink-0 ${boxWidthClass} ${isDistributed ? 'bg-slate-50 border-slate-200 text-slate-300 shadow-inner' : `${item.colorClass} shadow-sm hover:brightness-95`}`}>
                                     {isDistributed && (<div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded-xl"><Check size={20} className="text-slate-400" strokeWidth={3}/></div>)}
-                                    <span className={`text-[10px] font-bold ${isDistributed ? 'opacity-50' : ''}`}>{item.label}</span>
+                                    <span className={`text-[10px] font-bold ${isDistributed ? 'opacity-50' : item.textClass || ''}`}>{item.label}</span>
                                     <div className="flex items-center mt-0.5">
                                         {item.icon && !isDistributed && <item.icon size={12} className="mr-1 opacity-70"/>}
-                                        <span className={`text-base font-black leading-none ${isDistributed ? 'opacity-30' : ''}`}>{item.val}</span>
+                                        <span className={`text-base leading-none ${item.numClass} ${isDistributed ? 'opacity-30' : ''}`}>{item.val}</span>
                                     </div>
                                 </button>
                             );
                         } else {
                             return (
                                 <div key={item.id} className={`flex flex-col items-center justify-center p-2 rounded-xl border bg-white border-slate-200 flex-shrink-0 ${boxWidthClass} shadow-sm`}>
-                                     <div className="text-[10px] text-slate-500 font-bold mb-0.5">{item.label}</div>
-                                     <div className="flex items-center text-base font-black text-slate-700 leading-none mt-0.5">
+                                     <div className={`text-[10px] font-bold mb-0.5 ${item.textClass || 'text-slate-400'}`}>{item.label}</div>
+                                     <div className={`flex items-center text-base leading-none mt-0.5 ${item.textClass}`}>
                                         {item.icon && <item.icon size={12} className="mr-1 opacity-50"/>}
-                                        {item.val}
+                                        <span className={item.numClass}>{item.val}</span>
                                      </div>
                                 </div>
                             );
                         }
                     })}
                 </div>
-
-                {/* Contact Row */}
-                <div className="grid grid-cols-4 gap-2">
-                     {data.contact && (<a href={`tel:${data.contact}`} className={btnClass}><Phone size={14} className="mr-1.5"/>전화</a>)}
-                     {data.email && (<a href={`mailto:${data.email}`} className={btnClass}><Mail size={14} className="mr-1.5"/>메일</a>)}
-                     <div className="col-span-2">{data.appId && <MessengerLink text={data.appId} />}</div>
-                </div>
-
-                {/* Memo Button */}
-                <div className="flex justify-end pt-2">
-                    <button onClick={() => setIsMemoModalOpen(true)} className={`flex items-center px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${memo ? 'bg-rose-50 text-rose-600 border-rose-200' : 'text-slate-400 border-transparent hover:bg-slate-50'}`}>
-                        {memo ? '수정' : <><PenLine size={12} className="mr-1.5"/>특이사항</>}
-                    </button>
-                </div>
-                 
-                 {/* Memo Content (Toggle) */}
-                 {memo && (
-                    <div onClick={() => setIsMemoExpanded(!isMemoExpanded)} className="bg-white border border-rose-500 rounded-xl p-2.5 shadow-sm cursor-pointer hover:bg-rose-50/30 transition-colors animate-in slide-in-from-top-2">
-                        <div className="flex items-center mb-1">
-                            <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider">📝 MEMO</span>
-                        </div>
-                        <p className={`text-xs text-slate-700 font-medium whitespace-pre-wrap ${!isMemoExpanded && 'line-clamp-1'}`}>{memo}</p>
-                    </div>
-                )}
+                
+                 <div className="flex justify-center mt-0 opacity-20">
+                    {isOpen ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                 </div>
             </div>
-             <MemoModal isOpen={isMemoModalOpen} onClose={() => setIsMemoModalOpen(false)} initialValue={memo} onSave={(newText) => onUpdateMemo(data.id, newText)} />
+
+            {isOpen && (
+                <div className="p-4 pt-0 bg-white space-y-3 animate-in slide-in-from-top-2">
+                    <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-50">
+                         {data.contact && (<a href={`tel:${data.contact}`} className={btnClass} onClick={(e) => e.stopPropagation()}><Phone size={14} className="mr-1.5"/>전화</a>)}
+                         <div className="col-span-2">{data.appId && <MessengerLink text={data.appId} />}</div>
+                         
+                         <button 
+                            onClick={(e) => { e.stopPropagation(); setIsEditingMemo(!isEditingMemo); }} 
+                            className={`flex items-center justify-center px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${memo ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+                         >
+                            {memo ? '수정' : <><PenLine size={12} className="mr-1.5"/>특이사항</>}
+                         </button>
+                    </div>
+
+                    {isEditingMemo && (
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 mt-3 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                            <textarea 
+                                value={tempMemo} 
+                                onChange={(e) => setTempMemo(e.target.value)} 
+                                className="w-full h-24 p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none bg-white mb-2"
+                                placeholder="특이사항을 입력하세요..."
+                                autoFocus
+                            />
+                            <button 
+                                onClick={handleSaveMemo} 
+                                className="w-full py-2.5 bg-slate-800 text-white rounded-lg font-bold text-sm hover:bg-slate-700 active:scale-95 transition-all"
+                            >
+                                저장
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
 
 // ... BusSeatMap, BusManager ... (기존 유지)
 const BusSeatMap = ({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats }) => {
-   // ... code same as v1.79 ...
-   const renderSeat = (seatNum) => {
+    const renderSeat = (seatNum) => {
         const passenger = seatMap[seatNum];
         const isSelected = selectedSeat === seatNum;
         const isBlocked = blockedSeats.includes(seatNum);
@@ -473,24 +478,32 @@ const BusSeatMap = ({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats 
         const nationality = getNationality(passenger.contact); 
         const isHot = passenger.event && passenger.event.includes('HOT');
         const shortPickup = getPickupShort(passenger.pickup);
-        const seatColorClass = lang.type === 'cn' ? 'bg-white text-red-600 border-red-200 border-2' : 'bg-white text-blue-600 border-blue-200 border-2';
+        const seatBorderClass = isSelected ? 'border-blue-500 border-b-4 ring-1 ring-blue-500 bg-blue-50' : 'border-slate-300 border-b-[3px] active:border-b-0 active:translate-y-[3px] bg-white';
+        const textClass = isSelected ? 'text-blue-700' : 'text-slate-600'; 
 
         return (
-            <div key={seatNum} onClick={() => onSeatClick && onSeatClick(seatNum, passenger)} className={`aspect-square rounded-lg flex flex-col items-center justify-center shadow-sm cursor-pointer relative overflow-hidden transition-all ${isSelected ? 'ring-4 ring-blue-400 z-10 scale-105' : ''} ${seatColorClass}`}>
-                <span className="text-[9px] opacity-40 absolute top-0.5 left-1">{seatNum}</span>
-                <div className="absolute top-0.5 right-0.5 flex gap-0.5">{isHot && <span className="w-3 h-3 flex items-center justify-center bg-white text-rose-500 rounded text-[8px] font-black border border-rose-200">H</span>}</div>
-                <div className="flex flex-col items-center w-full px-0.5 mt-2"><span className="text-xl font-black break-words text-center leading-none truncate w-full tracking-tighter">{passenger.groupLabel}</span></div>
-                <div className="absolute bottom-1 w-full flex justify-center items-center gap-0.5 flex-wrap">
-                     {shortPickup && <span className="text-[7px] font-bold text-slate-500">{shortPickup}</span>}
-                     {nationality && <span className="text-[7px] font-bold text-slate-700">{nationality}</span>}
-                     <span className="text-[7px] font-bold">{lang.label}</span>
-                     {platform && (<span className={`w-3 h-3 rounded-full flex items-center justify-center text-[7px] font-bold text-white ${platform.color.split(' ')[0]}`}>{platform.label}</span>)}
+            <div key={seatNum} onClick={() => onSeatClick && onSeatClick(seatNum, passenger)} className={`aspect-square w-full rounded-lg border flex flex-col items-center justify-between shadow-sm cursor-pointer relative overflow-hidden transition-all duration-75 ${seatBorderClass} p-0.5`}>
+                <div className="w-full flex justify-between items-start">
+                    <span className="text-[11px] font-bold text-slate-400 leading-none ml-0.5">{seatNum}</span>
+                    <div className="flex gap-0.5">
+                        {isHot && <span className="w-4 h-4 flex items-center justify-center bg-rose-50 text-rose-500 rounded text-[9px] font-black border border-rose-100 leading-none pt-0.5">H</span>}
+                        {platform && <span className={`w-4 h-4 flex items-center justify-center rounded text-[9px] font-black ${platform.color} leading-none pt-0.5`}>{platform.label}</span>}
+                    </div>
+                </div>
+                <div className="flex flex-col items-center justify-center w-full flex-1 -mt-1">
+                    <span className={`text-2xl font-black ${textClass} break-words text-center leading-none truncate w-full tracking-tighter`}>{passenger.groupLabel}</span>
+                </div>
+                <div className="w-full flex justify-center items-center gap-0.5 text-[9px] font-bold text-slate-500 leading-none mb-0.5">
+                     {shortPickup && <span>{shortPickup}</span>}
+                     <span>{passenger.pax}</span>
+                     {nationality && <span className="text-slate-400">{nationality}</span>}
+                     <span>{lang.label}</span>
                 </div>
             </div>
         );
     };
-    const rows = []; const totalRows = 10; for(let r=0; r<totalRows; r++) { const rowSeats = []; rowSeats.push(renderSeat(r*4 + 1)); rowSeats.push(renderSeat(r*4 + 2)); rowSeats.push(<div key={`aisle-${r}`} className="w-1"></div>); rowSeats.push(renderSeat(r*4 + 3)); rowSeats.push(renderSeat(r*4 + 4)); rows.push(<div key={r} className="grid grid-cols-5 gap-0.5 mb-0.5">{rowSeats}</div>); }
-    let lastRow = null; if (busSize === 45) { lastRow = (<div className="grid grid-cols-5 gap-0.5 mt-0.5">{renderSeat(41)}{renderSeat(42)}{renderSeat(43)}{renderSeat(44)}{renderSeat(45)}</div>); } else { lastRow = (<div className="grid grid-cols-5 gap-0.5 mt-0.5">{renderSeat(41)}{renderSeat(42)}<div className="w-1"></div>{renderSeat(43)}{renderSeat(44)}</div>); }
+    const rows = []; const totalRows = 10; for(let r=0; r<totalRows; r++) { const rowSeats = []; rowSeats.push(renderSeat(r*4 + 1)); rowSeats.push(renderSeat(r*4 + 2)); rowSeats.push(<div key={`aisle-${r}`} className="aspect-square"></div>); rowSeats.push(renderSeat(r*4 + 3)); rowSeats.push(renderSeat(r*4 + 4)); rows.push(<div key={r} className="grid grid-cols-5 gap-1 mb-1">{rowSeats}</div>); }
+    let lastRow = null; if (busSize === 45) { const lastRowSeats = [41, 42, 43, 44, 45].map(n => renderSeat(n)); lastRow = (<div className="grid grid-cols-5 gap-1 mt-1">{lastRowSeats}</div>); } else { lastRow = (<div className="grid grid-cols-5 gap-1 mt-1">{renderSeat(41)}{renderSeat(42)}<div className="aspect-square"></div>{renderSeat(43)}{renderSeat(44)}</div>); }
     return (<div className="bg-slate-50 p-2 rounded-xl border border-slate-200 mt-4 animate-in slide-in-from-bottom-5"><h4 className="text-center font-bold text-slate-600 mb-2 flex items-center justify-center gap-2"><Bus size={20}/> 좌석 배치도 ({busSize}인승)</h4><div className="text-center text-xs text-slate-400 mb-2">클릭 후 다른 좌석을 선택하면 자리가 교체됩니다.</div><div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm"><div className="text-center text-xs text-slate-400 mb-2 font-bold border-b border-slate-100 pb-1">FRONT (운전석)</div>{rows}{lastRow}</div></div>);
 };
 
@@ -518,7 +531,7 @@ const BusManager = ({ isOpen, onClose, teamData, teamName, setSeatMap }) => {
 
     const updateSeatMap = (newMap) => {
         setLocalSeatMap(newMap);
-        setSeatMap(newMap); // Update parent state
+        setSeatMap(newMap);
         localStorage.setItem(`tm_seatMap_${teamName}`, JSON.stringify(newMap));
     };
 
@@ -526,7 +539,6 @@ const BusManager = ({ isOpen, onClose, teamData, teamName, setSeatMap }) => {
 
     const runAutoAssign = () => {
         let sorted = [...generatedGroups].sort((a,b) => b.pax - a.pax);
-        // ... sort logic (same as v1.79) ...
         sorted.sort((a, b) => {
             let scoreA = 0; let scoreB = 0;
             if (priorities.group4) { if (a.pax >= 4) scoreA += 50; if (b.pax >= 4) scoreB += 50; }
@@ -601,6 +613,100 @@ const BusManager = ({ isOpen, onClose, teamData, teamName, setSeatMap }) => {
     );
 };
 
+const Dashboard = ({ allTeamsSummary, stats, onTeamClick }) => {
+    return (
+        <div className="p-4 space-y-4 pb-20">
+            {/* 1. Overall Stats Card */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><Users size={20} className="mr-2 text-blue-600"/> 종합 현황</h2>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                        <svg className="w-full h-full transform -rotate-90">
+                            <circle cx="48" cy="48" r="40" stroke="#f1f5f9" strokeWidth="8" fill="none"/>
+                            <circle cx="48" cy="48" r="40" stroke="#2563eb" strokeWidth="8" fill="none" strokeDasharray="251.2" strokeDashoffset={251.2 * (1 - (stats.boardedPax / stats.total || 0))} className="transition-all duration-1000"/>
+                        </svg>
+                        <div className="absolute flex flex-col items-center">
+                            <span className="text-xl font-black text-slate-800">{isNaN(Math.round((stats.boardedPax / stats.total) * 100)) ? 0 : Math.round((stats.boardedPax / stats.total) * 100)}%</span>
+                            <span className="text-[10px] text-slate-400 font-bold">탑승률</span>
+                        </div>
+                    </div>
+                    <div className="flex-1 ml-6 space-y-2">
+                         <div className="flex justify-between items-center border-b border-slate-50 pb-2">
+                             <span className="text-xs text-slate-500 font-bold">총 인원</span>
+                             <span className="text-lg font-black text-slate-800">{stats.total}명</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                             <span className="text-xs text-slate-500 font-bold">탑승 완료</span>
+                             <span className="text-lg font-black text-blue-600">{stats.boardedPax}명</span>
+                         </div>
+                    </div>
+                </div>
+                
+                {/* Ski / Board / Lesson Breakdown */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-slate-600 flex items-center"><Snowflake size={12} className="mr-1 text-sky-500"/>스키 강습</span>
+                            <span className="text-sm font-black text-slate-800">{stats.lessonSkiTotal || 0}</span>
+                        </div>
+                        <div className="flex text-[10px] text-slate-400 gap-2">
+                            <span>중: <b className="text-slate-600">{stats.lessonSkiCn || 0}</b></span>
+                            <span>영: <b className="text-slate-600">{stats.lessonSkiEn || 0}</b></span>
+                        </div>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-slate-600 flex items-center"><Snowflake size={12} className="mr-1 text-rose-500"/>보드 강습</span>
+                            <span className="text-sm font-black text-slate-800">{stats.lessonBoardTotal || 0}</span>
+                        </div>
+                        <div className="flex text-[10px] text-slate-400 gap-2">
+                            <span>중: <b className="text-slate-600">{stats.lessonBoardCn || 0}</b></span>
+                            <span>영: <b className="text-slate-600">{stats.lessonBoardEn || 0}</b></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. Team Cards */}
+            <h3 className="font-bold text-slate-700 text-lg px-1">팀별 현황</h3>
+            {allTeamsSummary.map((team) => {
+                const styles = TEAM_THEMES[team.team] || TEAM_THEMES['DEFAULT'];
+                const phone = extractPhoneNumber(team.busInfo);
+                return (
+                    <div key={team.team} onClick={() => onTeamClick(team.team)} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer">
+                         <div className={`absolute right-0 top-0 w-20 h-20 rounded-bl-full opacity-10 ${styles.bg}`}></div>
+                         <div className="flex justify-between items-start mb-3">
+                             <div className="flex items-center">
+                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-sm border mr-3 ${styles.badgeBg} ${styles.text} ${styles.border}`}>
+                                     {team.team}
+                                 </div>
+                                 <div>
+                                     <h4 className="font-bold text-slate-800 text-lg">{team.guides || '가이드 미정'}</h4>
+                                     <span className="text-xs text-slate-500 font-medium">총 {team.totalPax}명 / 탑승 {team.boardedPax}명</span>
+                                 </div>
+                             </div>
+                             <div className="text-right">
+                                 <span className={`text-2xl font-black ${styles.text}`}>{team.progress}%</span>
+                             </div>
+                         </div>
+                         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mb-4">
+                             <div className={`h-full rounded-full transition-all duration-1000 ${styles.bar}`} style={{ width: `${team.progress}%` }}></div>
+                         </div>
+                         <div className="flex justify-between items-center" onClick={(e) => e.stopPropagation()}>
+                             <span className="text-xs text-slate-500 font-bold truncate max-w-[150px]"><Bus size={12} className="inline mr-1"/>{team.busInfo}</span>
+                             {phone && (
+                                <a href={`tel:${phone}`} className={`flex items-center px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${styles.text} ${styles.border} bg-white hover:bg-slate-50`}>
+                                    <PhoneCall size={12} className="mr-1.5"/>기사님
+                                </a>
+                             )}
+                         </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 const MessageCenter = ({ isOpen, onClose, teamData, teamName, seatMap }) => {
     if (!isOpen) return null;
     const [guideName, setGuideName] = useState(localStorage.getItem('tm_guideName') || ""); 
@@ -630,7 +736,7 @@ const MessageCenter = ({ isOpen, onClose, teamData, teamName, seatMap }) => {
     
     const getMessage = (group) => {
         const pickupTime = group.pickup.includes('홍대') ? '06:40' : group.pickup.includes('명동') ? '07:10' : '07:20'; 
-        let msg = `[${guideName}]\nHello, this is your ski tour guide.\nMeeting: ${group.pickup} / ${pickupTime}\n\n*${globalNotice}`;
+        let msg = `[${guideName}]\n\nHello, this is your ski tour guide.\nMeeting: ${group.pickup} / ${pickupTime}\n\n*${globalNotice}`;
         return encodeURIComponent(msg);
     };
 
@@ -707,14 +813,14 @@ const BottomNavigation = ({ activeTab, onTabChange }) => {
     );
 };
 
-export default function GuideProChecklist() {
+export default function App() {
   const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [tourDate, setTourDate] = useState({ date: '', type: '' });
   
   const [activeTab, setActiveTab] = useState('home'); // Tab State
-  const [selectedTeam, setSelectedTeam] = useState('A');
+  const [selectedTeam, setSelectedTeam] = useState(null); // Changed: Start with null for Dashboard
   const [locationFilter, setLocationFilter] = useState('전체');
   
   const [appState, setAppState] = useState({});
@@ -786,7 +892,13 @@ export default function GuideProChecklist() {
   const availableTeams = useMemo(() => [...new Set(rawData.map(d => d.team).filter(Boolean))].sort(), [rawData]);
 
   const groupedList = useMemo(() => {
-    const currentTeamData = rawData.filter(d => d.team === selectedTeam);
+    // If no team selected, provide data for the first available team as fallback for components that need data (like BusManager on init)
+    // OR return empty if we want strict behavior.
+    // For BusManager auto-assign fix: if user goes to Bus tab without selecting team, default to first team.
+    const targetTeam = selectedTeam || availableTeams[0]; 
+    if (!targetTeam) return [];
+    
+    const currentTeamData = rawData.filter(d => d.team === targetTeam);
     const groups = new Map();
     currentTeamData.forEach(item => {
         const key = item.contact && item.contact.length > 5 ? item.contact.replace(/[-\s]/g, '') : item.name.trim().toLowerCase();
@@ -805,8 +917,8 @@ export default function GuideProChecklist() {
     return Array.from(groups.values()).sort((a, b) => {
         const codeA = a.codes[0] || ""; const codeB = b.codes[0] || "";
         return codeA.localeCompare(codeB, undefined, { numeric: true });
-    }).map((g, i) => ({...g, groupLabel: `${selectedTeam}${i+1}`}));
-  }, [rawData, selectedTeam]);
+    }).map((g, i) => ({...g, groupLabel: `${targetTeam}${i+1}`}));
+  }, [rawData, selectedTeam, availableTeams]);
 
   const currentList = useMemo(() => {
     if (locationFilter === '전체') return groupedList;
@@ -837,13 +949,69 @@ export default function GuideProChecklist() {
     }, initialStats);
   }, [groupedList, appState]);
 
-  const teamDetailData = { // Defined here before renderContent
-      guides: [...new Set(rawData.filter(d => d.team === selectedTeam).map(d => d.guide).filter(Boolean))].join(', '),
-      busInfo: rawData.filter(d => d.team === selectedTeam).find(d => d.busInfo && d.busInfo.length > 5)?.busInfo || '정보 없음',
-      progress: Math.round((stats.boardedPax / stats.total) * 100) || 0,
-      notesCodes: [] 
+  // Dashboard Stats Logic (Aggregated)
+  const dashboardStats = useMemo(() => {
+      const stats = { 
+          total: 0, boardedPax: 0, 
+          lessonSkiTotal: 0, lessonSkiCn: 0, lessonSkiEn: 0,
+          lessonBoardTotal: 0, lessonBoardCn: 0, lessonBoardEn: 0 
+      };
+      
+      availableTeams.forEach(team => {
+          const teamList = rawData.filter(d => d.team === team);
+          const grouped = buildGroupedForTeam(teamList);
+          
+          grouped.forEach(g => {
+             stats.total += g.pax;
+          });
+      });
+      
+      rawData.forEach(item => {
+          const count = item.items.lesson || 0;
+          if (count > 0) {
+            const isBoard = item.event && (/board/i.test(item.event) || /보드/i.test(item.event));
+            const lang = (item.lang || '').toLowerCase();
+            const isCn = /chi|cn|중국|대만|홍콩/.test(lang);
+            
+            if (isBoard) {
+                stats.lessonBoardTotal += count;
+                if (isCn) stats.lessonBoardCn += count; else stats.lessonBoardEn += count;
+            } else {
+                stats.lessonSkiTotal += count;
+                if (isCn) stats.lessonSkiCn += count; else stats.lessonSkiEn += count;
+            }
+          }
+      });
+      return stats;
+  }, [rawData, availableTeams]);
+
+
+  // Dashboard Summary per Team
+  const allTeamsSummary = useMemo(() => {
+    return availableTeams.map(team => {
+      const teamList = rawData.filter(d => d.team === team);
+      const grouped = buildGroupedForTeam(teamList);
+      
+      const totalPax = grouped.reduce((acc, g) => acc + (g.pax || 0), 0);
+      const boardedPax = grouped.reduce((acc, g) => {
+          if (appState[g.id]?.boarded) return acc + (g.pax || 0);
+          return acc;
+      }, 0);
+      
+      const guides = [...new Set(teamList.map(d => d.guide).filter(Boolean))].join(', ');
+      const busInfo = teamList.find(d => d.busInfo && d.busInfo.length > 3)?.busInfo || '정보 없음';
+      const progress = totalPax > 0 ? Math.round((boardedPax / totalPax) * 100) : 0;
+      
+      return { team, totalPax, boardedPax, guides, busInfo, progress, count: grouped.length };
+    });
+  }, [availableTeams, rawData, appState]);
+
+  // Update Global Boarded Pax
+  const finalGlobalStats = {
+      ...dashboardStats,
+      boardedPax: allTeamsSummary.reduce((acc, t) => acc + t.boardedPax, 0),
+      total: allTeamsSummary.reduce((acc, t) => acc + t.totalPax, 0)
   };
-  groupedList.forEach(g => { if(g.note) teamDetailData.notesCodes.push(g.codes.join('/')); });
 
   // Actions
   const toggleBoarding = (id) => { const current = appState[id] || {}; saveState({ ...appState, [id]: { ...current, boarded: !current.boarded } }); };
@@ -857,6 +1025,16 @@ export default function GuideProChecklist() {
       return entry ? entry[0] : null;
   };
 
+  // Handlers for Navigation
+  const handleTeamClick = (team) => {
+      setSelectedTeam(team);
+      setActiveTab('home'); // Ensure we are on home tab
+  };
+
+  const handleBackToDashboard = () => {
+      setSelectedTeam(null);
+  };
+
   // Render Content based on activeTab
   const renderContent = () => {
       if (loading) return <div className="h-[60vh] flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
@@ -864,9 +1042,9 @@ export default function GuideProChecklist() {
 
       switch(activeTab) {
         case 'bus':
-            return <BusManager isOpen={true} onClose={() => {}} teamData={{list: groupedList}} teamName={selectedTeam} setSeatMap={(m) => { setSeatMap(m); localStorage.setItem(`tm_seatMap_${selectedTeam}`, JSON.stringify(m)); }} />;
+            return <BusManager isOpen={true} onClose={() => {}} teamData={{list: groupedList}} teamName={selectedTeam || availableTeams[0]} setSeatMap={(m) => { setSeatMap(m); localStorage.setItem(`tm_seatMap_${selectedTeam || availableTeams[0]}`, JSON.stringify(m)); }} />;
         case 'message':
-            return <MessageCenter isOpen={true} onClose={() => {}} teamData={{list: groupedList}} teamName={selectedTeam} seatMap={seatMap} />;
+            return <MessageCenter isOpen={true} onClose={() => {}} teamData={{list: groupedList}} teamName={selectedTeam || availableTeams[0]} seatMap={seatMap} />;
         case 'menu':
             return (
                 <div className="p-4 space-y-4">
@@ -879,40 +1057,67 @@ export default function GuideProChecklist() {
             );
         case 'home':
         default:
+            if (!selectedTeam) {
+                // Show Dashboard if no team selected
+                return <Dashboard allTeamsSummary={allTeamsSummary} stats={finalGlobalStats} onTeamClick={handleTeamClick} />;
+            }
+            
+            // Show Detail List
+            const currentTeamInfo = allTeamsSummary.find(t => t.team === selectedTeam);
+            const styles = TEAM_THEMES[selectedTeam] || TEAM_THEMES['DEFAULT'];
+            const phone = extractPhoneNumber(currentTeamInfo?.busInfo);
+
             return (
                 <>
-                    {/* Top Stats Area */}
-                    <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-                        <div className="px-4 py-3 overflow-x-auto scrollbar-hide flex items-center space-x-2">
+                    {/* Detail Page Header */}
+                    <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+                        <div className="px-4 py-3 flex items-center justify-between">
+                            <button onClick={handleBackToDashboard} className="p-1 -ml-2 text-slate-500 hover:text-slate-800"><ChevronLeft size={28}/></button>
+                            <div className="flex-1 text-center">
+                                <h1 className={`text-xl font-black ${UNIFIED_THEME.text}`}>{selectedTeam}팀 <span className="text-sm font-bold text-slate-500 ml-1">{currentTeamInfo?.guides}</span></h1>
+                            </div>
+                            <div className="w-8"></div>
+                        </div>
+                        
+                        <div className="px-4 pb-3">
+                             <div className="flex justify-between items-center mb-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                 <div className="flex items-center text-xs font-bold text-slate-600 truncate">
+                                     <Truck size={14} className="mr-1.5"/>{currentTeamInfo?.busInfo}
+                                 </div>
+                                 {phone && <a href={`tel:${phone}`} className="flex-shrink-0 bg-white border border-slate-200 text-slate-600 rounded-md p-1.5 shadow-sm active:scale-95"><PhoneCall size={14}/></a>}
+                             </div>
+                             <div className="flex items-center gap-3">
+                                 <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                     <div className={`h-full rounded-full transition-all duration-700 ${styles.bar}`} style={{ width: `${currentTeamInfo?.progress}%` }}></div>
+                                 </div>
+                                 <span className={`text-sm font-black ${styles.text}`}>{currentTeamInfo?.progress}%</span>
+                             </div>
+                        </div>
+                        
+                        {/* Stats Bar */}
+                        <div className="px-4 py-2 border-t border-slate-100 overflow-x-auto scrollbar-hide flex items-center space-x-2">
                              <TopSummaryBox label="리프트" total={stats.totalItems.lift} checked={stats.checkedItems.lift} color="violet" />
                              <TopSummaryBox label="무빙" total={stats.totalItems.moving} checked={stats.checkedItems.moving} color="amber" />
-                             {/* ... other stats ... */}
                              <TopSummaryBox label="눈썰매" total={stats.totalItems.sled} color="cyan" />
                              <TopSummaryBox label="관광L" total={stats.totalItems.sightseeing} color="emerald" />
-                             <div className="w-[1px] h-8 bg-slate-100 mx-1"></div>
+                             <TopSummaryBox label="셔틀" total={stats.totalItems.shuttle} color="slate" />
                              <TopSummaryBox label="장비" total={stats.totalItems.equip} simple color="slate" />
+                             <TopSummaryBox label="강습" total={stats.totalItems.lesson} simple color="slate" />
                              <TopSummaryBox label="의류" total={stats.totalItems.clothE + stats.totalItems.clothS} simple color="slate" />
                         </div>
-                        {/* Team & Location Filter */}
-                        <div className="px-4 pb-3 flex flex-col gap-2">
-                            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                                {availableTeams.map(t => (
-                                    <button key={t} onClick={() => setSelectedTeam(t)} className={`px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap ${selectedTeam === t ? 'bg-slate-900 text-white shadow-md transform scale-105' : 'bg-slate-100 text-slate-400'}`}>{t}팀</button>
-                                ))}
-                            </div>
-                            {/* Location Filter (Simple) */}
-                            <div className="flex gap-1 overflow-x-auto scrollbar-hide pt-1">
-                                {['전체', '홍대', '명동', '동대문', '스키장'].map(loc => (
-                                    <button key={loc} onClick={() => setLocationFilter(loc)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${locationFilter === loc ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'text-slate-400 hover:bg-slate-50'}`}>{loc}</button>
-                                ))}
-                            </div>
+                        
+                        {/* Location Filter */}
+                        <div className="px-4 py-2 border-t border-slate-50 flex gap-1 overflow-x-auto scrollbar-hide">
+                            {['전체', '홍대', '명동', '동대문', '스키장'].map(loc => (
+                                <button key={loc} onClick={() => setLocationFilter(loc)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${locationFilter === loc ? 'bg-blue-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-500'}`}>{loc}</button>
+                            ))}
                         </div>
                     </div>
                     
                     {/* Main List */}
                     <div className="p-4 space-y-4 pb-24 bg-slate-50 min-h-screen">
                         {currentList.map(item => (
-                             <DetailCard key={item.id} data={item} teamBusInfo={teamDetailData.busInfo} state={appState[item.id] || {}} onToggleBoarding={() => toggleBoarding(item.id)} onToggleDist={toggleDistribution} onUpdateMemo={(text) => updateMemo(item.id, text)} theme={UNIFIED_THEME} styles={TEAM_THEMES[selectedTeam] || TEAM_THEMES['DEFAULT']} assignedSeat={findAssignedSeat(item.id)}/>
+                             <DetailCard key={item.id} data={item} teamBusInfo={currentTeamInfo?.busInfo} state={appState[item.id] || {}} onToggleBoarding={() => toggleBoarding(item.id)} onToggleDist={toggleDistribution} onUpdateMemo={(text) => updateMemo(item.id, text)} theme={UNIFIED_THEME} styles={styles} assignedSeat={findAssignedSeat(item.id)}/>
                         ))}
                     </div>
                 </>
