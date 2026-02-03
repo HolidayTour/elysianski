@@ -5,7 +5,7 @@ import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowfl
 const SHEET_ID = "1Celx7ApccgzrNwbw6VyZRqUG_zg1z_dp3WmBhTFDlF0";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 
-const APP_VERSION = "v1.78"; // 좌석 카드에 국적 정보 추가 (전화번호 기반)
+const APP_VERSION = "v1.77"; // 버스관리 기능 분리 -> 메시지 센터로 이동
 
 // --- 데이터 컬럼 매핑 ---
 const COLS = {
@@ -122,26 +122,6 @@ const getPickupShort = (pickup) => {
     if (pickup.includes('동대문')) return '동대문';
     if (pickup.includes('스키장')) return '스키장';
     return pickup.substring(0, 2);
-};
-
-// 전화번호로 국적 확인
-const getNationality = (contact) => {
-    if (!contact) return '';
-    const num = contact.replace(/[^0-9]/g, '');
-    
-    if (num.startsWith('82') || num.startsWith('010')) return '한국';
-    if (num.startsWith('86')) return '중국';
-    if (num.startsWith('886')) return '대만';
-    if (num.startsWith('852')) return '홍콩';
-    if (num.startsWith('1')) return '미국';
-    if (num.startsWith('65')) return '싱가'; // 싱가포르
-    if (num.startsWith('60')) return '말레'; // 말레이시아
-    if (num.startsWith('66')) return '태국';
-    if (num.startsWith('81')) return '일본';
-    if (num.startsWith('84')) return '베트남';
-    if (num.startsWith('63')) return '필리핀';
-    
-    return '';
 };
 
 const downloadVCard = (teamData, teamName) => {
@@ -335,7 +315,6 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
     const handleCopy = (text) => { copyToClipboard(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
     const langInfo = getLangInfo(data.lang); 
     
-    // 2행 구조 (라벨 / 아이콘+수량)
     const allOptions = [
         { id: 'lift', label: '리프트', val: data.items.lift, type: 'check', icon: CableCar, colorClass: 'bg-white text-violet-600 border-violet-200' },
         { id: 'moving', label: '무빙', val: data.items.moving, type: 'check', icon: ChevronsRight, colorClass: 'bg-white text-amber-600 border-amber-200' },
@@ -472,7 +451,7 @@ const DetailCard = ({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
     );
 };
 
-// ... BusSeatMap, BusManager, MessageCenter (기존 코드 유지) ...
+// ... BusSeatMap ...
 const BusSeatMap = ({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats }) => {
     // ... code ...
     const renderSeat = (seatNum) => {
@@ -498,7 +477,6 @@ const BusSeatMap = ({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats 
 
         const platform = getPlatformInfo(passenger);
         const lang = getLangInfo(passenger.lang);
-        const nationality = getNationality(passenger.contact);
         const isHot = passenger.event && passenger.event.includes('HOT');
         const shortPickup = getPickupShort(passenger.pickup);
 
@@ -519,12 +497,11 @@ const BusSeatMap = ({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats 
                     <span className="text-[9px] font-bold mt-1 opacity-80">{passenger.pax}명</span>
                 </div>
 
-                <div className="absolute bottom-1 w-full flex justify-center items-center gap-0.5 flex-wrap">
-                     {shortPickup && <span className="text-[7px] font-bold text-slate-500">{shortPickup}</span>}
-                     {nationality && <span className="text-[7px] font-bold text-slate-700">{nationality}</span>}
-                     <span className="text-[7px] font-bold">{lang.label}</span>
+                <div className="absolute bottom-1 w-full flex justify-center items-center gap-1">
+                     {shortPickup && <span className="text-[8px] font-bold text-slate-500 mr-0.5">{shortPickup}</span>}
+                     <span className="text-[8px] font-bold">{lang.label}</span>
                      {platform && (
-                        <span className={`w-3 h-3 rounded-full flex items-center justify-center text-[7px] font-bold text-white ${platform.color.split(' ')[0]}`}>{platform.label}</span>
+                        <span className={`w-3 h-3 rounded-full flex items-center justify-center text-[8px] font-bold text-white ${platform.color.split(' ')[0]}`}>{platform.label}</span>
                      )}
                 </div>
             </div>
@@ -560,13 +537,13 @@ const BusSeatMap = ({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats 
 };
 
 const BusManager = ({ isOpen, onClose, teamData, teamName }) => {
-    // ... existing BusManager code ...
     if (!isOpen) return null;
     const [busSize, setBusSize] = useState(44); 
     const [generatedGroups, setGeneratedGroups] = useState([]); 
     const [seatMap, setSeatMap] = useState({});
     const [showMap, setShowMap] = useState(false);
     
+    // 배차 옵션 상태
     const [priorities, setPriorities] = useState({
         solo: true,         
         group4: false,      
@@ -737,28 +714,6 @@ const BusManager = ({ isOpen, onClose, teamData, teamName }) => {
                 </div>
                 {showMap && <BusSeatMap seatMap={seatMap} busSize={busSize} onSeatClick={handleSeatClick} selectedSeat={selectedSeat} blockedSeats={blockedSeats} />}
                 
-                <div className="space-y-3 pb-10">
-                     <h3 className="font-bold text-slate-700">발송 리스트 ({generatedGroups.length} 그룹)</h3>
-                     {generatedGroups.map((group, idx) => {
-                        const seats = getAssignedSeats(group);
-                        return (
-                            <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <span className="inline-block bg-white text-slate-600 border border-slate-200 px-2 py-0.5 rounded text-xs font-bold mb-1 mr-2">{group.groupLabel}</span>
-                                        <span className="font-bold text-slate-800 text-lg">{group.name}</span>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-sm text-slate-500">({group.pax}명)</span>
-                                            {seats && <span className="flex items-center text-xs font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><Bus size={10} className="mr-1"/>{seats}</span>}
-                                        </div>
-                                    </div>
-                                    <div className="text-right"><span className="text-xs font-bold bg-white border border-blue-600 text-blue-600 px-2 py-1 rounded">{group.pickup}</span></div>
-                                </div>
-                                <div className="flex gap-2 mt-1"><a href={`https://wa.me/${group.contact.replace(/[^0-9]/g,'')}?text=${getMessage(group)}`} target="_blank" rel="noreferrer" className="flex-1 bg-[#25D366] text-white py-2 rounded-lg text-center font-bold text-sm flex items-center justify-center hover:opacity-90"><MessageCircle size={16} className="mr-1"/> WhatsApp</a><button onClick={() => { copyToClipboard(decodeURIComponent(getMessage(group))); alert("메시지 복사됨"); }} className="bg-slate-100 text-slate-600 px-4 rounded-lg hover:bg-slate-200"><Copy size={16}/></button></div>
-                            </div>
-                        );
-                     })}
-                </div>
             </div>
         </div>
     );
@@ -774,6 +729,35 @@ const MessageCenter = ({ isOpen, onClose, teamData, teamName }) => {
     // Save to local storage on change
     const handleGuideNameChange = (e) => { setGuideName(e.target.value); localStorage.setItem('tm_guideName', e.target.value); };
     const handleGlobalNoticeChange = (e) => { setGlobalNotice(e.target.value); localStorage.setItem('tm_globalNotice', e.target.value); };
+    
+    // Generate groups with labels if not present (in case opened directly)
+    const groups = useMemo(() => {
+        if (!teamData || !teamData.list) return [];
+        return teamData.list.map((group, idx) => ({
+            ...group,
+            groupLabel: `${teamName}${idx+1}`
+        }));
+    }, [teamData, teamName]);
+
+    // Get assigned seats for display
+    const savedMap = localStorage.getItem(`tm_seatMap_${teamName}`);
+    const seatMap = savedMap ? JSON.parse(savedMap) : {};
+    
+    const getAssignedSeats = (group) => {
+        const assigned = [];
+        Object.entries(seatMap).forEach(([seat, passenger]) => {
+            // Compare IDs or Codes
+            if (passenger.id === group.id) assigned.push(seat);
+        });
+        return assigned.sort((a,b) => a-b).join(', ');
+    };
+    
+    // Add getMessage function
+    const getMessage = (group) => {
+        const pickupTime = group.pickup.includes('홍대') ? '06:40' : group.pickup.includes('명동') ? '07:10' : '07:20'; 
+        let msg = `[${guideName}]\n\nHello, this is your ski tour guide.\nMeeting: ${group.pickup} / ${pickupTime}\n\n*${globalNotice}`;
+        return encodeURIComponent(msg);
+    };
 
     const contacts = teamData.list.filter(p => p.contact && p.contact.length > 5).map(p => p.contact.replace(/[-\s]/g, ''));
     const uniqueContacts = [...new Set(contacts)];
@@ -793,16 +777,37 @@ const MessageCenter = ({ isOpen, onClose, teamData, teamName }) => {
                         <h4 className="text-xs font-bold text-slate-500 uppercase flex items-center"><Settings size={12} className="mr-1"/> 가이드 설정</h4>
                         <div><label className="block text-xs font-bold text-slate-400 mb-1">가이드 영문 이름</label><input type="text" value={guideName} onChange={handleGuideNameChange} className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white" placeholder="ex) Mr. Kim"/></div>
                         <div><label className="block text-xs font-bold text-slate-400 mb-1">공통 공지사항</label><textarea value={globalNotice} onChange={handleGlobalNoticeChange} className="w-full p-2 border border-slate-200 rounded-lg h-20 text-sm bg-white" placeholder="추가 공지사항..."></textarea></div>
+                        <button onClick={handleDownloadVCard} className="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg font-bold shadow-sm hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center text-sm"><Save size={16} className="mr-2"/> 팀 연락처 VCard 저장</button>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">연락처 관리 ({uniqueContacts.length}명)</label>
-                        <div className="grid grid-cols-2 gap-2"><button onClick={handleCopyContacts} className="flex items-center justify-center p-3 bg-white border border-blue-200 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-50 transition-colors"><Copy size={16} className="mr-2"/> 번호 일괄복사</button><button onClick={handleDownloadVCard} className="flex items-center justify-center p-3 bg-white border border-green-200 text-green-600 rounded-xl font-bold text-sm hover:bg-green-50 transition-colors"><Download size={16} className="mr-2"/> VCard 저장</button></div>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">메시지 템플릿</label>
-                        <textarea value={msgTemplate} onChange={(e) => setMsgTemplate(e.target.value)} placeholder="전송할 내용을 작성하세요." className="w-full h-32 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"/>
-                        <button onClick={() => { copyToClipboard(msgTemplate); alert("복사되었습니다."); }} className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 active:scale-95 transition-all">내용 복사하기</button>
+                    {/* 발송 리스트 (BusManager에서 이동됨) */}
+                    <div className="space-y-3">
+                         <h3 className="font-bold text-slate-700 text-sm flex items-center justify-between">
+                            <span>발송 리스트 ({groups.length} 그룹)</span>
+                            <span className="text-xs text-slate-400 font-normal">좌석 배정 정보 포함</span>
+                         </h3>
+                         {groups.map((group, idx) => {
+                            const seats = getAssignedSeats(group);
+                            return (
+                                <div key={idx} className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col gap-2">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <span className="inline-block bg-white text-slate-600 border border-slate-200 px-2 py-0.5 rounded text-xs font-bold mb-1 mr-2">{group.groupLabel || `G${idx+1}`}</span>
+                                            <span className="font-bold text-slate-800 text-sm">{group.name}</span>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-xs text-slate-500">({group.pax}명)</span>
+                                                {seats && <span className="flex items-center text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><Bus size={10} className="mr-1"/>{seats}</span>}
+                                            </div>
+                                        </div>
+                                        <div className="text-right"><span className="text-[10px] font-bold bg-white border border-blue-600 text-blue-600 px-2 py-1 rounded">{group.pickup}</span></div>
+                                    </div>
+                                    <div className="flex gap-2 mt-1">
+                                        <a href={`https://wa.me/${group.contact.replace(/[^0-9]/g,'')}?text=${getMessage(group)}`} target="_blank" rel="noreferrer" className="flex-1 bg-[#25D366] text-white py-2 rounded-lg text-center font-bold text-xs flex items-center justify-center hover:opacity-90"><MessageCircle size={14} className="mr-1"/> WhatsApp</a>
+                                        <button onClick={() => { copyToClipboard(decodeURIComponent(getMessage(group))); alert("메시지 복사됨"); }} className="bg-white text-slate-600 border border-slate-200 px-3 rounded-lg hover:bg-slate-50"><Copy size={14}/></button>
+                                    </div>
+                                </div>
+                            );
+                         })}
                     </div>
                 </div>
             </div>
