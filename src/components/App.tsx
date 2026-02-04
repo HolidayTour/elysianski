@@ -3,9 +3,9 @@ import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowfl
 
 // *** 구글 시트 데이터 연결 ***
 const SHEET_ID = "1Celx7ApccgzrNwbw6VyZRqUG_zg1z_dp3WmBhTFDlF0";
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1905716770`;
 
-const APP_VERSION = "v3.6_Final_Fix"; // 실행 오류(참조, 모달) 완벽 수정 및 function 선언 전환
+const APP_VERSION = "v3.93_UI_Polish"; // 픽업지 버튼 숫자 디자인 고도화 (작고 얇게 처리)
 
 // --- 데이터 컬럼 매핑 ---
 const COLS = {
@@ -172,7 +172,8 @@ function buildGroupedForTeam(dataRows) {
       : (item.name || '').trim().toLowerCase();
     if (!key) return;
     if (!groups.has(key)) {
-      groups.set(key, { ...item, codes: [item.code], members: [item] });
+      // items를 새로운 객체로 복사하여 원본 오염 방지
+      groups.set(key, { ...item, codes: [item.code], members: [item], items: { ...item.items } });
     } else {
       const g = groups.get(key);
       g.codes.push(item.code);
@@ -203,7 +204,7 @@ function TopSummaryBox({ label, total, checked, color = "slate", simple = false 
     };
     const style = colors[color] || colors.slate;
     
-    // 카운트다운 로직: 체크된 수량(checked)이 있으면, 메인 숫자는 (전체 - 체크) = 남은 수량
+    // 카운트다운 로직: 남은 수량 = 전체 - 체크
     const remaining = checked !== undefined ? total - checked : null;
     const displayValue = remaining !== null ? remaining : total;
     
@@ -215,7 +216,9 @@ function TopSummaryBox({ label, total, checked, color = "slate", simple = false 
         <div className={`flex flex-col items-center justify-center p-1.5 rounded-xl border flex-shrink-0 min-w-[3.5rem] h-[3.8rem] shadow-sm ${style}`}>
             <span className="text-[10px] font-bold mb-0.5 opacity-80">{label}</span>
             <div className="flex items-end gap-0.5">
-                <span className={numClass}>{displayValue}</span>
+                {/* 셔틀 등 simple 모드일 때는 전체 수량만 표시 */}
+                <span className={numClass}>{simple ? total : displayValue}</span>
+                {/* 카운트다운 모드일 때 전체 수량 병기 */}
                 {remaining !== null && !simple && (<span className="text-[10px] font-bold opacity-60 mb-0.5">/{total}</span>)}
             </div>
         </div>
@@ -317,16 +320,17 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
     const langInfo = getLangInfo(data.lang); 
     const platform = getPlatformInfo(data);
     
+    // 2행 구조 (모두 체크 가능하도록 수정)
     const allOptions = [
         { id: 'lift', label: '리프트', val: data.items.lift, type: 'check', icon: CableCar, colorClass: 'bg-white text-violet-600 border-violet-200', textClass: 'text-slate-700', numClass: 'font-black' }, 
         { id: 'moving', label: '무빙', val: data.items.moving, type: 'check', icon: ChevronsRight, colorClass: 'bg-white text-amber-600 border-amber-200', textClass: 'text-slate-700', numClass: 'font-black' },
         { id: 'sled', label: '눈썰매', val: data.items.sled, type: 'check', icon: CloudSnow, colorClass: 'bg-white text-cyan-600 border-cyan-200', textClass: 'text-slate-700', numClass: 'font-black' },
         { id: 'sightseeing', label: '관광L', val: data.items.sightseeing, type: 'check', icon: Camera, colorClass: 'bg-white text-emerald-600 border-emerald-200', textClass: 'text-slate-700', numClass: 'font-black' },
         { id: 'shuttle', label: '셔틀', val: data.items.shuttle, type: 'check', icon: Bus, colorClass: 'bg-white text-slate-500 border-slate-300', textClass: 'text-slate-500', numClass: 'font-bold' },
-        { id: 'equip', label: '장비', val: data.items.equip, type: 'info', icon: Backpack, textClass: 'text-slate-400', numClass: 'font-medium' },
-        { id: 'lesson', label: '강습', val: data.items.lesson, type: 'info', icon: Users, textClass: 'text-slate-400', numClass: 'font-medium' },
-        { id: 'clothE', label: '의류(E)', val: data.items.clothE, type: 'info', icon: Shirt, textClass: 'text-slate-400', numClass: 'font-medium' },
-        { id: 'clothS', label: '의류(S)', val: data.items.clothS, type: 'info', icon: Shirt, textClass: 'text-slate-400', numClass: 'font-medium' },
+        { id: 'equip', label: '장비', val: data.items.equip, type: 'check', icon: Backpack, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
+        { id: 'lesson', label: '강습', val: data.items.lesson, type: 'check', icon: Users, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
+        { id: 'clothE', label: '의류(E)', val: data.items.clothE, type: 'check', icon: Shirt, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
+        { id: 'clothS', label: '의류(S)', val: data.items.clothS, type: 'check', icon: Shirt, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
     ].filter(item => item.val > 0);
 
     const btnClass = "flex items-center justify-center px-3 py-2 bg-slate-50 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 hover:bg-slate-100 transition-colors";
@@ -340,26 +344,30 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
 
     return (
         <div id={`card-${data.code}`} className={`rounded-2xl border shadow-sm bg-white overflow-hidden transition-all duration-300 ${isBoarded ? `border-blue-200 bg-blue-50/10` : 'border-slate-200 hover:shadow-md'} mb-4`}>
-            {/* Header */}
+            {/* Header: Always Visible - Click to Toggle Open/Close */}
             <div 
                 className="p-4 border-b border-slate-50 bg-white cursor-pointer active:bg-slate-50 transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
             >
+                {/* 1. 상단 정보 */}
                 <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">
                         <div className={`flex items-center justify-center w-8 h-8 rounded-lg shadow-sm border text-sm font-black ${styles.badgeBg} ${styles.text} ${styles.border}`}>
                             {data.code.substring(0, 2)}
                         </div>
+                        {/* 예약번호 */}
                         <button onClick={(e) => { e.stopPropagation(); handleCopy(data.resNo); }} className="flex items-center text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 transition-colors">
                             {copied ? <Check size={10} className="text-green-500 mr-1"/> : <Copy size={10} className="mr-1"/>}
                             <span className={`font-mono ${copied ? 'text-green-600' : ''}`}>{data.resNo}</span>
                         </button>
                     </div>
+                    {/* 탑승 버튼 */}
                     <button onClick={(e) => { e.stopPropagation(); onToggleBoarding(); }} className={`flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm border ${isBoarded ? `bg-white border-blue-600 text-blue-600` : `bg-white text-slate-400 border-slate-200`}`}>
                         <Check size={12} className={`mr-1 ${isBoarded ? 'text-blue-600' : 'text-slate-300'}`} strokeWidth={3}/>{isBoarded ? '탑승완료' : '탑승'}
                     </button>
                 </div>
 
+                {/* 2. 이름 */}
                 <div className="mb-2">
                     <div className="flex items-center gap-1.5">
                         <h3 className="font-bold text-xl text-slate-900 leading-none">{data.name}</h3>
@@ -367,6 +375,7 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     </div>
                 </div>
 
+                {/* 3. 상세 정보 뱃지들 */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="flex items-center text-xs font-bold text-slate-600"><Users size={12} className="mr-0.5"/> {data.pax}명</span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${langInfo.color}`}>{langInfo.label}</span>
@@ -374,6 +383,7 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     {assignedSeat && <span className="flex items-center text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><Bus size={10} className="mr-0.5"/>{assignedSeat}</span>}
                 </div>
 
+                {/* PKG Name & Memo */}
                 <div className="mt-3 space-y-2">
                      {data.event && (
                         <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
@@ -382,6 +392,7 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                              </p>
                         </div>
                     )}
+                    {/* Memo (Yellow Box) */}
                     {memo && (
                         <div className="bg-yellow-50 p-2 rounded-lg border border-yellow-200 animate-in fade-in slide-in-from-top-1 shadow-sm">
                             <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap flex items-start">
@@ -392,47 +403,38 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
                     )}
                 </div>
                 
+                {/* Options Box (Always Visible, All Clickable) */}
                 <div className="flex w-full gap-2 overflow-x-auto scrollbar-hide py-3 mt-1 border-t border-slate-50" onClick={(e) => e.stopPropagation()}>
                     {allOptions.map((item) => {
                         const isDistributed = dist[item.id];
-                        const isCheckItem = item.type === 'check';
-
-                        if (isCheckItem) {
-                            return (
-                                <button key={item.id} onClick={() => onToggleDist(data.id, item.id)} className={`relative flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-95 flex-shrink-0 ${boxWidthClass} ${isDistributed ? 'bg-slate-50 border-slate-200 text-slate-300 shadow-inner' : `${item.colorClass} shadow-sm hover:brightness-95`}`}>
-                                    {isDistributed && (<div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded-xl"><Check size={20} className="text-slate-400" strokeWidth={3}/></div>)}
-                                    <span className={`text-[10px] font-bold ${isDistributed ? 'opacity-50' : item.textClass || ''}`}>{item.label}</span>
-                                    <div className="flex items-center mt-0.5">
-                                        {item.icon && !isDistributed && <item.icon size={12} className="mr-1 opacity-70"/>}
-                                        <span className={`text-base leading-none ${item.numClass} ${isDistributed ? 'opacity-30' : ''}`}>{item.val}</span>
-                                    </div>
-                                </button>
-                            );
-                        } else {
-                            return (
-                                <div key={item.id} className={`flex flex-col items-center justify-center p-2 rounded-xl border bg-white border-slate-200 flex-shrink-0 ${boxWidthClass} shadow-sm`}>
-                                     <div className={`text-[10px] font-bold mb-0.5 ${item.textClass || 'text-slate-400'}`}>{item.label}</div>
-                                     <div className={`flex items-center text-base leading-none mt-0.5 ${item.textClass}`}>
-                                        {item.icon && <item.icon size={12} className="mr-1 opacity-50"/>}
-                                        <span className={item.numClass}>{item.val}</span>
-                                     </div>
+                        // 이제 모든 항목이 check 타입으로 처리되거나 클릭 가능
+                        return (
+                            <button key={item.id} onClick={() => onToggleDist(data.id, item.id)} className={`relative flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-95 flex-shrink-0 ${boxWidthClass} ${isDistributed ? 'bg-slate-50 border-slate-200 text-slate-300 shadow-inner' : `${item.colorClass} shadow-sm hover:brightness-95`}`}>
+                                {isDistributed && (<div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded-xl"><Check size={20} className="text-slate-400" strokeWidth={3}/></div>)}
+                                <span className={`text-[10px] font-bold ${isDistributed ? 'opacity-50' : item.textClass || ''}`}>{item.label}</span>
+                                <div className="flex items-center mt-0.5">
+                                    {item.icon && !isDistributed && <item.icon size={12} className="mr-1 opacity-70"/>}
+                                    <span className={`text-base leading-none ${item.numClass} ${isDistributed ? 'opacity-30' : ''}`}>{item.val}</span>
                                 </div>
-                            );
-                        }
+                            </button>
+                        );
                     })}
                 </div>
                 
+                 {/* Chevron */}
                  <div className="flex justify-center mt-0 opacity-20">
                     {isOpen ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                  </div>
             </div>
 
+            {/* Collapsible Body (Contact & Inline Memo Input) */}
             {isOpen && (
                 <div className="p-4 pt-0 bg-white space-y-3 animate-in slide-in-from-top-2">
                     <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-50">
                          {data.contact && (<a href={`tel:${data.contact}`} className={btnClass} onClick={(e) => e.stopPropagation()}><Phone size={14} className="mr-1.5"/>전화</a>)}
                          <div className="col-span-2">{data.appId && <MessengerLink text={data.appId} />}</div>
                          
+                         {/* 특이사항 버튼 */}
                          <button 
                             onClick={(e) => { e.stopPropagation(); setIsEditingMemo(!isEditingMemo); }} 
                             className={`flex items-center justify-center px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${memo ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
@@ -499,9 +501,28 @@ function BusSeatMap({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats 
                 </div>
             </div>
         );
+    };
+
+    const rows = [];
+    const totalRows = 10; 
+    for(let r=0; r<totalRows; r++) {
+        const rowSeats = [];
+        rowSeats.push(renderSeat(r*4 + 1)); 
+        rowSeats.push(renderSeat(r*4 + 2)); 
+        rowSeats.push(<div key={`aisle-${r}`} className="aspect-square"></div>); 
+        rowSeats.push(renderSeat(r*4 + 3)); 
+        rowSeats.push(renderSeat(r*4 + 4)); 
+        rows.push(<div key={r} className="grid grid-cols-5 gap-1 mb-1">{rowSeats}</div>); 
     }
-    const rows = []; const totalRows = 10; for(let r=0; r<totalRows; r++) { const rowSeats = []; rowSeats.push(renderSeat(r*4 + 1)); rowSeats.push(renderSeat(r*4 + 2)); rowSeats.push(<div key={`aisle-${r}`} className="aspect-square"></div>); rowSeats.push(renderSeat(r*4 + 3)); rowSeats.push(renderSeat(r*4 + 4)); rows.push(<div key={r} className="grid grid-cols-5 gap-1 mb-1">{rowSeats}</div>); }
-    let lastRow = null; if (busSize === 45) { const lastRowSeats = [41, 42, 43, 44, 45].map(n => renderSeat(n)); lastRow = (<div className="grid grid-cols-5 gap-1 mt-1">{lastRowSeats}</div>); } else { lastRow = (<div className="grid grid-cols-5 gap-1 mt-1">{renderSeat(41)}{renderSeat(42)}<div className="aspect-square"></div>{renderSeat(43)}{renderSeat(44)}</div>); }
+    
+    let lastRow = null; 
+    if (busSize === 45) { 
+        const lastRowSeats = [41, 42, 43, 44, 45].map(n => renderSeat(n));
+        lastRow = (<div className="grid grid-cols-5 gap-1 mt-1">{lastRowSeats}</div>); 
+    } else { 
+        lastRow = (<div className="grid grid-cols-5 gap-1 mt-1">{renderSeat(41)}{renderSeat(42)}<div className="aspect-square"></div>{renderSeat(43)}{renderSeat(44)}</div>); 
+    }
+    
     return (<div className="bg-slate-50 p-2 rounded-xl border border-slate-200 mt-4 animate-in slide-in-from-bottom-5"><h4 className="text-center font-bold text-slate-600 mb-2 flex items-center justify-center gap-2"><Bus size={20}/> 좌석 배치도 ({busSize}인승)</h4><div className="text-center text-xs text-slate-400 mb-2">클릭 후 다른 좌석을 선택하면 자리가 교체됩니다.</div><div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm"><div className="text-center text-xs text-slate-400 mb-2 font-bold border-b border-slate-100 pb-1">FRONT (운전석)</div>{rows}{lastRow}</div></div>);
 }
 
@@ -801,7 +822,7 @@ function BottomNavigation({ activeTab, onTabChange }) {
         { id: 'home', label: '홈', icon: Home },
         { id: 'bus', label: '버스', icon: Bus },
         { id: 'message', label: '메시지', icon: MessageSquare },
-        { id: 'menu', label: '관리', icon: User }, 
+        { id: 'menu', label: '관리', icon: Menu }, 
     ];
 
     return (
@@ -840,6 +861,7 @@ export default function App() {
   const [appState, setAppState] = useState({});
   const [seatMap, setSeatMap] = useState({}); 
 
+  // ... (useEffect for Load/Save - Same as v1.79) ...
   useEffect(() => {
     const saved = localStorage.getItem('guide_pro_state_v40'); 
     if (saved) setAppState(JSON.parse(saved));
@@ -906,6 +928,7 @@ export default function App() {
   const availableTeams = useMemo(() => [...new Set(rawData.map(d => d.team).filter(Boolean))].sort(), [rawData]);
 
   const groupedList = useMemo(() => {
+    // Determine target team based on tab
     let targetTeam = null;
     if (activeTab === 'home') targetTeam = selectedTeam;
     else if (activeTab === 'bus') targetTeam = busSelectedTeam;
@@ -926,11 +949,19 @@ export default function App() {
     const initialStats = {
       total: 0, boardedPax: 0, pickups: {}, boardedPickups: {},
       totalItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0, hot: 0 },
-      checkedItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0 }
+      checkedItems: { shuttle: 0, sled: 0, sightseeing: 0, moving: 0, lift: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0 }
     };
     return groupedList.reduce((acc, curr) => {
       acc.total += (curr.pax || 0);
-      if (appState[curr.id]?.boarded) acc.boardedPax += (curr.pax || 0);
+
+      // Pickup Stats Accumulation
+      const pickup = curr.pickup || '기타';
+      acc.pickups[pickup] = (acc.pickups[pickup] || 0) + (curr.pax || 0);
+
+      if (appState[curr.id]?.boarded) {
+          acc.boardedPax += (curr.pax || 0);
+          acc.boardedPickups[pickup] = (acc.boardedPickups[pickup] || 0) + (curr.pax || 0);
+      }
       if (curr.event && /HOT/i.test(curr.event)) acc.totalItems.hot += (curr.pax || 0);
       acc.totalItems.shuttle += curr.items.shuttle; acc.totalItems.lift += curr.items.lift;
       acc.totalItems.moving += curr.items.moving; acc.totalItems.sled += curr.items.sled;
@@ -940,10 +971,21 @@ export default function App() {
       const dist = appState[curr.id]?.distributed || {};
       if(dist.lift) acc.checkedItems.lift += curr.items.lift;
       if(dist.moving) acc.checkedItems.moving += curr.items.moving;
+      // [수정] 모든 체크 항목 집계
+      if(dist.sled) acc.checkedItems.sled += curr.items.sled;
+      if(dist.sightseeing) acc.checkedItems.sightseeing += curr.items.sightseeing;
+      if(dist.shuttle) acc.checkedItems.shuttle += curr.items.shuttle;
+      // [수정] 장비, 강습, 의류 추가
+      if(dist.equip) acc.checkedItems.equip += curr.items.equip;
+      if(dist.lesson) acc.checkedItems.lesson += curr.items.lesson;
+      if(dist.clothE) acc.checkedItems.clothE += curr.items.clothE;
+      if(dist.clothS) acc.checkedItems.clothS += curr.items.clothS;
+
       return acc;
     }, initialStats);
   }, [groupedList, appState]);
 
+  // Dashboard Stats Logic (Aggregated)
   const dashboardStats = useMemo(() => {
       const stats = { 
           total: 0, boardedPax: 0, 
@@ -954,7 +996,10 @@ export default function App() {
       availableTeams.forEach(team => {
           const teamList = rawData.filter(d => d.team === team);
           const grouped = buildGroupedForTeam(teamList);
-          grouped.forEach(g => { stats.total += g.pax; });
+          
+          grouped.forEach(g => {
+             stats.total += g.pax;
+          });
       });
       
       rawData.forEach(item => {
@@ -976,6 +1021,8 @@ export default function App() {
       return stats;
   }, [rawData, availableTeams]);
 
+
+  // Dashboard Summary per Team
   const allTeamsSummary = useMemo(() => {
     return availableTeams.map(team => {
       const teamList = rawData.filter(d => d.team === team);
@@ -995,18 +1042,24 @@ export default function App() {
     });
   }, [availableTeams, rawData, appState]);
 
+  // Update Global Boarded Pax
   const finalGlobalStats = {
       ...dashboardStats,
       boardedPax: allTeamsSummary.reduce((acc, t) => acc + t.boardedPax, 0),
       total: allTeamsSummary.reduce((acc, t) => acc + t.totalPax, 0)
   };
 
+  // Actions
   const toggleBoarding = (id) => { const current = appState[id] || {}; saveState({ ...appState, [id]: { ...current, boarded: !current.boarded } }); };
   const toggleDistribution = (id, key) => { const current = appState[id] || {}; const currentDist = current.distributed || {}; saveState({ ...appState, [id]: { ...current, distributed: { ...currentDist, [key]: !currentDist[key] } } }); };
   const updateMemo = (id, text) => { const current = appState[id] || {}; saveState({ ...appState, [id]: { ...current, memo: text } }); };
   const findAssignedSeat = (passengerId) => { if (!seatMap) return null; const entry = Object.entries(seatMap).find(([seat, p]) => p.id === passengerId); return entry ? entry[0] : null; };
 
-  const handleTeamClick = (team) => { setSelectedTeam(team); setActiveTab('home'); };
+  // Handlers for Navigation
+  const handleTeamClick = (team) => {
+      setSelectedTeam(team);
+      setActiveTab('home'); // Ensure we are on home tab
+  };
   const handleBackToDashboard = () => { setSelectedTeam(null); };
 
   const handleTabChange = (tabId) => {
@@ -1015,6 +1068,7 @@ export default function App() {
       if (tabId === 'message') setMsgSelectedTeam(null);
   };
 
+  // Render Content based on activeTab
   const renderContent = () => {
       if (loading) return <div className="h-[60vh] flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
       if (error) return <div className="p-8 text-center"><AlertCircle className="mx-auto text-rose-500 mb-4" size={32}/><h3 className="text-lg font-bold text-slate-800">연결 실패</h3><p className="text-slate-500 text-sm mt-2 mb-6">데이터를 불러올 수 없습니다.</p><button onClick={loadData} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm">재시도</button></div>;
@@ -1080,8 +1134,17 @@ export default function App() {
                  const dist = appState[curr.id]?.distributed || {};
                  if(dist.lift) acc.checkedItems.lift += curr.items.lift;
                  if(dist.moving) acc.checkedItems.moving += curr.items.moving;
+                 if(dist.sled) acc.checkedItems.sled += curr.items.sled;
+                 if(dist.sightseeing) acc.checkedItems.sightseeing += curr.items.sightseeing;
+                 if(dist.shuttle) acc.checkedItems.shuttle += curr.items.shuttle;
+                 // [수정] 상세 페이지 통계에도 모든 항목 체크 반영
+                 if(dist.equip) acc.checkedItems.equip += curr.items.equip;
+                 if(dist.lesson) acc.checkedItems.lesson += curr.items.lesson;
+                 if(dist.clothE) acc.checkedItems.clothE += curr.items.clothE;
+                 if(dist.clothS) acc.checkedItems.clothS += curr.items.clothS;
+                 
                  return acc;
-            }, { totalItems: { lift: 0, moving: 0, sled: 0, sightseeing: 0, shuttle: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0 }, checkedItems: { lift: 0, moving: 0 } });
+            }, { totalItems: { lift: 0, moving: 0, sled: 0, sightseeing: 0, shuttle: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0 }, checkedItems: { lift: 0, moving: 0, sled: 0, sightseeing: 0, shuttle: 0, equip: 0, lesson: 0, clothE: 0, clothS: 0 } });
 
             return (
                 <>
@@ -1112,18 +1175,38 @@ export default function App() {
                         <div className="px-4 py-2 border-t border-slate-100 overflow-x-auto scrollbar-hide flex items-center space-x-2">
                              <TopSummaryBox label="리프트" total={detailStats.totalItems.lift} checked={detailStats.checkedItems.lift} color="violet" />
                              <TopSummaryBox label="무빙" total={detailStats.totalItems.moving} checked={detailStats.checkedItems.moving} color="amber" />
-                             <TopSummaryBox label="눈썰매" total={detailStats.totalItems.sled} color="cyan" />
-                             <TopSummaryBox label="관광L" total={detailStats.totalItems.sightseeing} color="emerald" />
-                             <TopSummaryBox label="셔틀" total={detailStats.totalItems.shuttle} color="slate" />
-                             <TopSummaryBox label="장비" total={detailStats.totalItems.equip} simple color="slate" />
-                             <TopSummaryBox label="강습" total={detailStats.totalItems.lesson} simple color="slate" />
-                             <TopSummaryBox label="의류" total={detailStats.totalItems.clothE + detailStats.totalItems.clothS} simple color="slate" />
+                             <TopSummaryBox label="눈썰매" total={detailStats.totalItems.sled} checked={detailStats.checkedItems.sled} color="cyan" />
+                             <TopSummaryBox label="관광L" total={detailStats.totalItems.sightseeing} checked={detailStats.checkedItems.sightseeing} color="emerald" />
+                             {/* 셔틀은 카운트다운 제외: simple 모드 */}
+                             <TopSummaryBox label="셔틀" total={detailStats.totalItems.shuttle} simple color="slate" />
+                             <TopSummaryBox label="장비" total={detailStats.totalItems.equip} checked={detailStats.checkedItems.equip} simple color="slate" />
+                             <TopSummaryBox label="강습" total={detailStats.totalItems.lesson} checked={detailStats.checkedItems.lesson} simple color="slate" />
+                             <TopSummaryBox label="의류" total={detailStats.totalItems.clothE + detailStats.totalItems.clothS} checked={detailStats.checkedItems.clothE + detailStats.checkedItems.clothS} simple color="slate" />
                         </div>
                         
                         <div className="px-4 py-2 border-t border-slate-50 flex gap-1 overflow-x-auto scrollbar-hide">
-                            {['전체', '홍대', '명동', '동대문', '스키장'].map(loc => (
-                                <button key={loc} onClick={() => setLocationFilter(loc)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${locationFilter === loc ? 'bg-blue-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-500'}`}>{loc}</button>
-                            ))}
+                            {['전체', '홍대', '명동', '동대문', '스키장'].map(loc => {
+                                // 픽업지 카운트다운 로직
+                                let total = loc === '전체' ? stats.total : (stats.pickups[loc] || 0);
+                                
+                                // 숨김 처리: 0명이면 표시 안 함 (전체 제외)
+                                if (loc !== '전체' && total === 0) return null;
+
+                                let boarded = loc === '전체' ? stats.boardedPax : (stats.boardedPickups[loc] || 0);
+                                let remain = total - boarded;
+                                
+                                // [수정] 픽업지 버튼 텍스트 디자인: 크고 굵게 / 작고 얇게
+                                const isActive = locationFilter === loc;
+                                return (
+                                    <button key={loc} onClick={() => setLocationFilter(loc)} className={`px-3 py-2 rounded-xl whitespace-nowrap flex items-center gap-1.5 transition-all ${isActive ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-500' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                        <span className="text-xs font-bold">{loc}</span>
+                                        <div className="flex items-baseline">
+                                            <span className="text-sm font-black leading-none">{remain}</span>
+                                            <span className={`text-[10px] font-medium leading-none ml-0.5 ${isActive ? 'text-blue-200' : 'text-slate-400'}`}>/{total}</span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                     
