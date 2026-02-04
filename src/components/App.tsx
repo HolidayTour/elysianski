@@ -324,11 +324,11 @@ function DetailCard({ data, teamBusInfo, state, onToggleBoarding, onToggleDist, 
     // 2행 구조 (모두 체크 가능하도록 수정)
     const allOptions = [
         { id: 'lift', label: '리프트', val: data.items.lift, type: 'check', icon: CableCar, colorClass: 'bg-white text-violet-600 border-violet-200', textClass: 'text-slate-700', numClass: 'font-black' }, 
-        { id: 'moving', label: '무빙', val: data.items.moving, type: 'check', icon: ChevronRight, colorClass: 'bg-white text-amber-600 border-amber-200', textClass: 'text-slate-700', numClass: 'font-black' },
+        { id: 'moving', label: '무빙', val: data.items.moving, type: 'check', icon: ChevronsRight, colorClass: 'bg-white text-amber-600 border-amber-200', textClass: 'text-slate-700', numClass: 'font-black' },
         { id: 'sled', label: '눈썰매', val: data.items.sled, type: 'check', icon: CloudSnow, colorClass: 'bg-white text-cyan-600 border-cyan-200', textClass: 'text-slate-700', numClass: 'font-black' },
         { id: 'sightseeing', label: '관광L', val: data.items.sightseeing, type: 'check', icon: Camera, colorClass: 'bg-white text-emerald-600 border-emerald-200', textClass: 'text-slate-700', numClass: 'font-black' },
         { id: 'shuttle', label: '셔틀', val: data.items.shuttle, type: 'check', icon: Bus, colorClass: 'bg-white text-slate-500 border-slate-300', textClass: 'text-slate-500', numClass: 'font-bold' },
-        { id: 'equip', label: '장비', val: data.items.equip, type: 'check', icon: SkiIcon, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
+        { id: 'equip', label: '장비', val: data.items.equip, type: 'check', icon: Backpack, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
         { id: 'lesson', label: '강습', val: data.items.lesson, type: 'check', icon: Users, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
         { id: 'clothE', label: '의류(E)', val: data.items.clothE, type: 'check', icon: Shirt, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
         { id: 'clothS', label: '의류(S)', val: data.items.clothS, type: 'check', icon: Shirt, colorClass: 'bg-white text-slate-400 border-slate-200', textClass: 'text-slate-400', numClass: 'font-medium' },
