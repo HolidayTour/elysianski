@@ -5,7 +5,7 @@ import { Check, Users, RefreshCw, AlertCircle, Phone, MessageCircle, Bus, Snowfl
 const SHEET_ID = "1Celx7ApccgzrNwbw6VyZRqUG_zg1z_dp3WmBhTFDlF0";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1905716770`;
 
-const APP_VERSION = "v3.93_UI_Polish"; // 픽업지 버튼 숫자 디자인 고도화 (작고 얇게 처리)
+const APP_VERSION = "v3.94_Seat_Design"; // 좌석 그래픽 고도화 (픽업뱃지, 언어색상, 인원배치)
 
 // --- 데이터 컬럼 매핑 ---
 const COLS = {
@@ -82,6 +82,7 @@ function getPlatformInfo(item) {
     const appId = (item.appId || '').toUpperCase();
     const code = (item.code || '').toUpperCase();
     
+    // 배경 제거, 글씨만 유색으로
     if (resNo.includes('KK') || appId.includes('KKDAY')) { return { label: 'K', color: 'text-cyan-500' }; }
     const klookPattern = /[A-Z0-9]{6,}/; 
     if ((klookPattern.test(resNo) && !resNo.startsWith('TK')) || appId.includes('KLOOK') || code.includes('KLOOK')) { return { label: 'K', color: 'text-orange-500' }; }
@@ -480,24 +481,43 @@ function BusSeatMap({ seatMap, busSize, onSeatClick, selectedSeat, blockedSeats 
         const shortPickup = getPickupShort(passenger.pickup);
         const seatBorderClass = isSelected ? 'border-blue-500 border-b-4 ring-1 ring-blue-500 bg-blue-50' : 'border-slate-300 border-b-[3px] active:border-b-0 active:translate-y-[3px] bg-white';
         const textClass = isSelected ? 'text-blue-700' : 'text-slate-600'; 
+        
+        // 픽업지 뱃지
+        let pickupBadge = null;
+        if(shortPickup) {
+             if (shortPickup.includes('홍대')) pickupBadge = <span className="flex items-center justify-center w-4 h-4 rounded-full bg-green-100 text-green-700 text-[9px] font-black">홍</span>;
+             else if (shortPickup.includes('명동')) pickupBadge = <span className="flex items-center justify-center w-4 h-4 rounded-full bg-sky-100 text-sky-700 text-[9px] font-black">명</span>;
+             else if (shortPickup.includes('동대문')) pickupBadge = <span className="flex items-center justify-center w-4 h-4 rounded-full bg-purple-100 text-purple-700 text-[9px] font-black">동</span>;
+             else if (shortPickup.includes('스키장')) pickupBadge = <span className="flex items-center justify-center w-4 h-4 rounded-full bg-slate-100 text-slate-600 text-[9px] font-black">스</span>;
+        }
+
+        // 언어 표시
+        let langDisplay = null;
+        if(lang.type === 'cn') langDisplay = <span className="text-red-500 font-bold">中</span>;
+        else if(lang.type === 'en') langDisplay = <span className="text-blue-600 font-bold">英</span>;
+        else langDisplay = <span className="text-slate-400 font-bold">?</span>;
 
         return (
             <div key={seatNum} onClick={() => onSeatClick && onSeatClick(seatNum, passenger)} className={`aspect-square w-full rounded-lg border flex flex-col items-center justify-between shadow-sm cursor-pointer relative overflow-hidden transition-all duration-75 ${seatBorderClass} p-0.5`}>
                 <div className="w-full flex justify-between items-start">
-                    <span className="text-[11px] font-bold text-slate-400 leading-none ml-0.5">{seatNum}</span>
-                    <div className="flex gap-0.5">
-                        {isHot && <span className="w-4 h-4 flex items-center justify-center bg-rose-50 text-rose-500 rounded text-[9px] font-black border border-rose-100 leading-none pt-0.5">H</span>}
-                        {platform && <span className={`w-4 h-4 flex items-center justify-center rounded text-[9px] font-black ${platform.color} leading-none pt-0.5`}>{platform.label}</span>}
+                    <span className="text-[10px] font-bold text-slate-400 leading-none ml-0.5">{seatNum}</span>
+                    <div className="flex gap-0.5 items-start">
+                        {isHot && <span className="text-[9px] font-black text-rose-500">H</span>}
+                        {platform && <span className={`text-[9px] font-black ${platform.color}`}>{platform.label}</span>}
                     </div>
                 </div>
-                <div className="flex flex-col items-center justify-center w-full flex-1 -mt-1">
-                    <span className={`text-2xl font-black ${textClass} break-words text-center leading-none truncate w-full tracking-tighter`}>{passenger.groupLabel}</span>
+                <div className="flex flex-col items-center justify-center w-full flex-1 -mt-2 relative">
+                    <div className="flex items-end">
+                        <span className={`text-3xl font-black ${textClass} leading-none tracking-tighter`}>{passenger.groupLabel}</span>
+                        <span className="text-[9px] font-bold text-slate-500 ml-0.5 -mb-0.5">{passenger.pax}명</span>
+                    </div>
                 </div>
-                <div className="w-full flex justify-center items-center gap-0.5 text-[9px] font-bold text-slate-500 leading-none mb-0.5">
-                     {shortPickup && <span>{shortPickup}</span>}
-                     <span>{passenger.pax}</span>
-                     {nationality && <span className="text-slate-400">{nationality}</span>}
-                     <span>{lang.label}</span>
+                <div className="w-full flex justify-between items-end px-0.5 pb-0.5">
+                     {pickupBadge}
+                     <div className="flex flex-col items-end leading-none">
+                         {nationality && <span className="text-[8px] font-bold text-slate-400 mb-0.5">{nationality}</span>}
+                         <span className="text-[10px]">{langDisplay}</span>
+                     </div>
                 </div>
             </div>
         );
@@ -869,6 +889,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+      // Load seat map for selected team in Bus/Msg tab or Main Detail
       const target = activeTab === 'bus' ? busSelectedTeam : (activeTab === 'message' ? msgSelectedTeam : selectedTeam);
       if (target) {
           const savedMap = localStorage.getItem(`tm_seatMap_${target}`);
